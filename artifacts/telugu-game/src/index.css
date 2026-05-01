@@ -1,0 +1,53 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --font-sans: var(--app-font-sans);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --background: 230 35% 8%;
+  --foreground: 220 20% 92%;
+  --border: 230 30% 20%;
+  --input: 230 30% 20%;
+  --ring: 238 80% 65%;
+  --primary: 238 80% 60%;
+  --primary-foreground: 0 0% 100%;
+  --muted: 230 25% 15%;
+  --muted-foreground: 220 15% 55%;
+  --radius: 1rem;
+
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-mono: Menlo, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+  body {
+    background: linear-gradient(160deg, #1a0a2e 0%, #16213e 60%, #0f3460 100%);
+    min-height: 100vh;
+    color: hsl(var(--foreground));
+    font-family: var(--app-font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* hide scrollbar for vowel scroll row */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
