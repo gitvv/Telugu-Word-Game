@@ -3,18 +3,24 @@ import { useState, useRef } from "react";
 // ─── Telugu data ──────────────────────────────────────────────────────────────
 
 const HALANT = "్";
+const ANUSVARA = "ం";
 
 // Independent vowels (standalone — fill box directly)
 const INDEPENDENT_VOWELS = new Set([
   "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
 ]);
 
-// All modifier shelf items in exact order
+// Traditional phonetic order:
+// Independent Vowels → Anusvara → Dependent Signs → Halant
 const MODIFIER_SHELF = [
-  "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ",
-  "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
-  "ా", "ి", "ీ", "ు", "ూ", "ృ",
-  "ె", "ే", "ై", "ొ", "ో", "ౌ", "్",
+  // Independent vowels
+  "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
+  // The Bridge
+  ANUSVARA,
+  // Dependent vowel signs
+  "ా", "ి", "ీ", "ు", "ూ", "ె", "ే", "ై", "ొ", "ో", "ౌ",
+  // The Glue
+  HALANT,
 ];
 
 // 7 rows × 5 columns
@@ -109,13 +115,44 @@ export default function Game() {
 
   // ── Modifier shelf ─────────────────────────────────────────────────────────
   function handleModifier(char: string) {
+    // ── Anusvara: universal modifier — attaches to active box, no cursor advance
+    if (char === ANUSVARA) {
+      // Case 1: builder has in-progress consonants → commit them + ం, stay on same box
+      if (builder.consonants.length > 0) {
+        const akshara = finalizeBuilder({ ...builder, pendingHalant: false }) + ANUSVARA;
+        setBoxes((prev) => { const next = [...prev]; next[activeBox] = akshara; return next; });
+        setBuilder(emptyBuilder());
+        // Do NOT advance activeBox
+        return;
+      }
+      // Case 2: active box already has a committed akshara → append ం to it, stay
+      if (boxes[activeBox]) {
+        setBoxes((prev) => {
+          const next = [...prev];
+          next[activeBox] = next[activeBox] + ANUSVARA;
+          return next;
+        });
+        return;
+      }
+      // Case 3: active box empty, go back and append ం to the previous box
+      if (activeBox > 0) {
+        setBoxes((prev) => {
+          const next = [...prev];
+          next[activeBox - 1] = next[activeBox - 1] + ANUSVARA;
+          return next;
+        });
+        return;
+      }
+      toast("Nothing to attach ం to yet!");
+      return;
+    }
+
     if (activeBox >= WORD_LENGTH) { toast("All boxes filled!"); return; }
 
     if (INDEPENDENT_VOWELS.has(char)) {
       // Independent vowel — fills box directly (finalize any pending builder first)
       if (builder.consonants.length > 0) {
         commitBuilder(builder, activeBox);
-        // Then set this vowel in next box — but let user press it again
         toast(`Committed current akshara — tap ${char} again to place it`);
         return;
       }
@@ -129,7 +166,7 @@ export default function Game() {
       return;
     }
 
-    // Matra / dependent vowel sign
+    // Dependent vowel sign (matra)
     if (builder.consonants.length === 0) { toast("Pick a consonant first!"); return; }
     commitBuilder({ ...builder, vowelSign: char, pendingHalant: false }, activeBox);
   }
