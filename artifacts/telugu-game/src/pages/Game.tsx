@@ -4,82 +4,72 @@ import { useState, useRef } from "react";
 
 const HALANT = "్";
 
-const VOWEL_SIGNS = [
-  { sign: "ా", label: "aa" },
-  { sign: "ి", label: "i" },
-  { sign: "ీ", label: "ii" },
-  { sign: "ు", label: "u" },
-  { sign: "ూ", label: "uu" },
-  { sign: "ె", label: "e" },
-  { sign: "ే", label: "ee" },
-  { sign: "ై", label: "ai" },
-  { sign: "ొ", label: "o" },
-  { sign: "ో", label: "oo" },
-  { sign: "ౌ", label: "au" },
-  { sign: HALANT, label: "్" },
-  { sign: "ం", label: "am" },
-  { sign: "ః", label: "ah" },
+// Independent vowels (standalone — fill box directly)
+const INDEPENDENT_VOWELS = new Set([
+  "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
+]);
+
+// All modifier shelf items in exact order
+const MODIFIER_SHELF = [
+  "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ",
+  "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
+  "ా", "ి", "ీ", "ు", "ూ", "ృ",
+  "ె", "ే", "ై", "ొ", "ో", "ౌ", "్",
 ];
 
-// 30 consonants in 5 columns
-const CONSONANTS = [
-  "క", "ఖ", "గ", "ఘ", "ఙ",
-  "చ", "ఛ", "జ", "ఝ", "ఞ",
-  "ట", "ఠ", "డ", "ఢ", "ణ",
-  "త", "థ", "ద", "ధ", "న",
-  "ప", "ఫ", "బ", "భ", "మ",
-  "య", "ర", "ల", "వ", "శ",
+// 7 rows × 5 columns
+const CONSONANT_ROWS = [
+  ["క", "ఖ", "గ", "ఘ", "ఙ"],
+  ["చ", "ఛ", "జ", "ఝ", "ఞ"],
+  ["ట", "ఠ", "డ", "ఢ", "ణ"],
+  ["త", "థ", "ద", "ధ", "న"],
+  ["ప", "ఫ", "బ", "భ", "మ"],
+  ["య", "ర", "ల", "వ", "శ"],
+  ["ష", "స", "హ", "ళ", "ఱ"],
 ];
 
 const WORD_LENGTH = 4;
 
-// ─── Akshara builder types ────────────────────────────────────────────────────
+// ─── Akshara builder ──────────────────────────────────────────────────────────
 
 interface AksharaBuilder {
   consonants: string[];
   vowelSign: string | null;
-  pendingHalant: boolean; // user just pressed ్, waiting for next consonant
+  pendingHalant: boolean;
 }
 
-function emptyBuilder(): AksharaBuilder {
-  return { consonants: [], vowelSign: null, pendingHalant: false };
-}
+const emptyBuilder = (): AksharaBuilder => ({
+  consonants: [],
+  vowelSign: null,
+  pendingHalant: false,
+});
 
-/** Visual string shown inside the guess box (may include trailing ్ if pending). */
 function renderBuilder(b: AksharaBuilder): string {
   if (b.consonants.length === 0) return "";
   const cluster = b.consonants.join(HALANT);
-  const halantSuffix = b.pendingHalant ? HALANT : "";
-  const vowel = b.vowelSign ?? "";
-  return cluster + halantSuffix + vowel;
+  return cluster + (b.pendingHalant ? HALANT : "") + (b.vowelSign ?? "");
 }
 
-/** Final committed akshara string. */
 function finalizeBuilder(b: AksharaBuilder): string {
   if (b.consonants.length === 0) return "";
   return b.consonants.join(HALANT) + (b.vowelSign ?? "");
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Game() {
-  // Committed aksharas (finalized boxes)
   const [boxes, setBoxes] = useState<string[]>(Array(WORD_LENGTH).fill(""));
-  // Active box index
-  const [activeBox, setActiveBox] = useState<number>(0);
-  // In-progress akshara being built
+  const [activeBox, setActiveBox] = useState(0);
   const [builder, setBuilder] = useState<AksharaBuilder>(emptyBuilder());
-  // Toast/hint message
   const [hint, setHint] = useState<string | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function showHint(msg: string) {
+  function toast(msg: string) {
     if (hintTimer.current) clearTimeout(hintTimer.current);
     setHint(msg);
     hintTimer.current = setTimeout(() => setHint(null), 2000);
   }
 
-  // ── Commit current builder into the active box and advance ─────────────────
   function commitBuilder(b: AksharaBuilder, box: number) {
     const akshara = finalizeBuilder(b);
     if (!akshara) return;
@@ -92,132 +82,101 @@ export default function Game() {
     setActiveBox(Math.min(box + 1, WORD_LENGTH));
   }
 
-  // ── Consonant key pressed ──────────────────────────────────────────────────
+  function commitString(str: string, box: number) {
+    setBoxes((prev) => {
+      const next = [...prev];
+      next[box] = str;
+      return next;
+    });
+    setBuilder(emptyBuilder());
+    setActiveBox(Math.min(box + 1, WORD_LENGTH));
+  }
+
+  // ── Consonant ──────────────────────────────────────────────────────────────
   function handleConsonant(char: string) {
-    if (activeBox >= WORD_LENGTH) {
-      showHint("All 4 aksharas filled — submit or clear!");
-      return;
-    }
+    if (activeBox >= WORD_LENGTH) { toast("All boxes filled — submit or backspace!"); return; }
     setBuilder((prev) => {
       if (prev.consonants.length === 0 || prev.pendingHalant) {
-        // Start or extend a cluster
-        return {
-          consonants: [...prev.consonants, char],
-          vowelSign: null,
-          pendingHalant: false,
-        };
-      } else {
-        // No halant → finalize current akshara first, start new one
-        const akshara = finalizeBuilder(prev);
-        setBoxes((bx) => {
-          const next = [...bx];
-          next[activeBox] = akshara;
-          return next;
-        });
-        setActiveBox((ab) => {
-          const nextBox = Math.min(ab + 1, WORD_LENGTH);
-          return nextBox;
-        });
-        return {
-          consonants: [char],
-          vowelSign: null,
-          pendingHalant: false,
-        };
+        return { consonants: [...prev.consonants, char], vowelSign: null, pendingHalant: false };
       }
+      // No halant pending — finalize current, start new
+      const akshara = finalizeBuilder(prev);
+      setBoxes((bx) => { const nx = [...bx]; nx[activeBox] = akshara; return nx; });
+      setActiveBox((ab) => Math.min(ab + 1, WORD_LENGTH));
+      return { consonants: [char], vowelSign: null, pendingHalant: false };
     });
   }
 
-  // ── Vowel sign pressed ─────────────────────────────────────────────────────
-  function handleVowelSign(sign: string) {
-    if (activeBox >= WORD_LENGTH) return;
+  // ── Modifier shelf ─────────────────────────────────────────────────────────
+  function handleModifier(char: string) {
+    if (activeBox >= WORD_LENGTH) { toast("All boxes filled!"); return; }
 
-    if (sign === HALANT) {
-      // Halant: mark pending (next consonant will be joined into cluster)
-      if (builder.consonants.length === 0) {
-        showHint("Pick a consonant first, then apply ్");
+    if (INDEPENDENT_VOWELS.has(char)) {
+      // Independent vowel — fills box directly (finalize any pending builder first)
+      if (builder.consonants.length > 0) {
+        commitBuilder(builder, activeBox);
+        // Then set this vowel in next box — but let user press it again
+        toast(`Committed current akshara — tap ${char} again to place it`);
         return;
       }
+      commitString(char, activeBox);
+      return;
+    }
+
+    if (char === HALANT) {
+      if (builder.consonants.length === 0) { toast("Pick a consonant first, then ్"); return; }
       setBuilder((prev) => ({ ...prev, pendingHalant: true, vowelSign: null }));
       return;
     }
 
-    // Regular vowel sign: attach and finalize
-    if (builder.consonants.length === 0) {
-      showHint("Pick a consonant first, then a vowel sign");
-      return;
-    }
-    const finalized = { ...builder, vowelSign: sign, pendingHalant: false };
-    commitBuilder(finalized, activeBox);
+    // Matra / dependent vowel sign
+    if (builder.consonants.length === 0) { toast("Pick a consonant first!"); return; }
+    commitBuilder({ ...builder, vowelSign: char, pendingHalant: false }, activeBox);
   }
 
-  // ── Next / confirm button ──────────────────────────────────────────────────
-  function handleNext() {
-    if (builder.consonants.length === 0) {
-      showHint("Type a consonant first!");
+  // ── క్ష special key ────────────────────────────────────────────────────────
+  function handleKsha() {
+    if (activeBox >= WORD_LENGTH) { toast("All boxes filled!"); return; }
+    if (builder.consonants.length > 0 && !builder.pendingHalant) {
+      // Finalize current first
+      commitBuilder(builder, activeBox);
+      toast("Committed — now tap క్ష again");
       return;
     }
-    commitBuilder({ ...builder, pendingHalant: false }, activeBox);
+    // Start a క్ష cluster (or extend if halant pending)
+    setBuilder((prev) => ({
+      consonants: [...prev.consonants, "క", "ష"],
+      vowelSign: null,
+      pendingHalant: false,
+    }));
   }
 
   // ── Backspace ──────────────────────────────────────────────────────────────
   function handleBackspace() {
-    // If there's something in the builder, undo within builder first
-    if (builder.pendingHalant) {
-      setBuilder((prev) => ({ ...prev, pendingHalant: false }));
-      return;
-    }
-    if (builder.vowelSign) {
-      setBuilder((prev) => ({ ...prev, vowelSign: null }));
-      return;
-    }
+    if (builder.pendingHalant) { setBuilder((p) => ({ ...p, pendingHalant: false })); return; }
+    if (builder.vowelSign)     { setBuilder((p) => ({ ...p, vowelSign: null })); return; }
     if (builder.consonants.length > 1) {
-      setBuilder((prev) => ({
-        ...prev,
-        consonants: prev.consonants.slice(0, -1),
-        pendingHalant: false,
-      }));
+      setBuilder((p) => ({ ...p, consonants: p.consonants.slice(0, -1), pendingHalant: false }));
       return;
     }
-    if (builder.consonants.length === 1) {
-      setBuilder(emptyBuilder());
-      return;
-    }
-    // Builder is empty — go back to previous box
+    if (builder.consonants.length === 1) { setBuilder(emptyBuilder()); return; }
     if (activeBox > 0) {
-      const prevBox = activeBox - 1;
-      setActiveBox(prevBox);
-      setBoxes((prev) => {
-        const next = [...prev];
-        next[prevBox] = "";
-        return next;
-      });
+      const prev = activeBox - 1;
+      setActiveBox(prev);
+      setBoxes((bx) => { const nx = [...bx]; nx[prev] = ""; return nx; });
     }
-  }
-
-  // ── Full reset ─────────────────────────────────────────────────────────────
-  function handleReset() {
-    setBoxes(Array(WORD_LENGTH).fill(""));
-    setBuilder(emptyBuilder());
-    setActiveBox(0);
-    setHint(null);
   }
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   function handleSubmit() {
-    // Finalize any pending builder first
     let finalBoxes = [...boxes];
-    let curBox = activeBox;
-    if (builder.consonants.length > 0 && curBox < WORD_LENGTH) {
-      finalBoxes[curBox] = finalizeBuilder({ ...builder, pendingHalant: false });
-      curBox++;
+    let cur = activeBox;
+    if (builder.consonants.length > 0 && cur < WORD_LENGTH) {
+      finalBoxes[cur] = finalizeBuilder({ ...builder, pendingHalant: false });
+      cur++;
     }
-    const filled = finalBoxes.filter(Boolean).length;
-    if (filled < WORD_LENGTH) {
-      showHint(`Fill all ${WORD_LENGTH} aksharas first!`);
-      return;
-    }
-    const word = finalBoxes.join("");
-    showHint(`✓ submitted: ${word}`);
+    if (finalBoxes.filter(Boolean).length < WORD_LENGTH) { toast("Fill all 4 aksharas first!"); return; }
+    toast(`✓ సమర్పించారు: ${finalBoxes.join("")}`);
   }
 
   // ── Derived display ────────────────────────────────────────────────────────
@@ -227,130 +186,110 @@ export default function Game() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center select-none"
       style={{
-        background: "linear-gradient(160deg, #1a0a2e 0%, #16213e 60%, #0f3460 100%)",
+        height: "100dvh",
+        display: "flex",
+        flexDirection: "column",
+        background: "linear-gradient(160deg,#1a0a2e 0%,#16213e 55%,#0f3460 100%)",
         maxWidth: 480,
         margin: "0 auto",
+        overflow: "hidden",
       }}
     >
-      {/* ── Header ── */}
-      <div className="w-full flex items-center justify-between px-5 pt-10 pb-3">
-        <div>
-          <h1
-            className="text-2xl font-bold text-amber-300 tracking-wide"
-            style={{ fontFamily: "serif" }}
+      {/* ── Guess Area ─────────────────────────────────────────────────────── */}
+      <div style={{ padding: "16px 16px 8px", flexShrink: 0 }}>
+        {/* Hint bar */}
+        <div
+          style={{
+            height: hint ? 30 : 0,
+            overflow: "hidden",
+            transition: "height 0.2s",
+            marginBottom: hint ? 6 : 0,
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(99,102,241,0.25)",
+              color: "#a5b4fc",
+              borderRadius: 8,
+              fontSize: 11,
+              textAlign: "center",
+              padding: "4px 8px",
+            }}
           >
-            తెలుగు పదం
-          </h1>
-          <p className="text-xs text-indigo-300 mt-0.5 tracking-widest uppercase">
-            Telugu Word Game
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <span className="text-xs text-indigo-300">4 aksharas</span>
-          <div className="flex gap-1">
-            {Array.from({ length: WORD_LENGTH }).map((_, i) => (
-              <div
-                key={i}
-                className="w-2 h-2 rounded-full transition-all duration-300"
-                style={{
-                  background: boxes[i]
-                    ? "#f59e0b"
-                    : i === activeBox
-                    ? "#818cf8"
-                    : "#3b4568",
-                }}
-              />
-            ))}
+            {hint}
           </div>
         </div>
-      </div>
 
-      <div
-        className="w-full h-px"
-        style={{ background: "linear-gradient(90deg, transparent, #7c3aed44, transparent)" }}
-      />
-
-      {/* ── Hint toast ── */}
-      <div
-        className="w-full px-5 overflow-hidden transition-all duration-300"
-        style={{ height: hint ? 36 : 0, opacity: hint ? 1 : 0 }}
-      >
-        <div
-          className="mt-2 px-3 py-1 rounded-lg text-xs text-center"
-          style={{ background: "rgba(99,102,241,0.25)", color: "#a5b4fc" }}
-        >
-          {hint}
-        </div>
-      </div>
-
-      {/* ── Guess area ── */}
-      <div className="w-full px-5 pt-4 pb-2">
-        <p className="text-xs text-indigo-400 uppercase tracking-widest mb-3 text-center">
-          మీ అంచనా · Your Guess
-        </p>
-        <div className="flex gap-3 justify-center">
+        {/* 4 boxes */}
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
           {Array.from({ length: WORD_LENGTH }).map((_, i) => {
             const committed = boxes[i];
             const isActive = i === activeBox;
-            const displayChar = isActive && isBuilding ? builderDisplay : committed;
-            const isEmpty = !displayChar;
+            const display = isActive && isBuilding ? builderDisplay : committed;
+            const empty = !display;
+            const charLen = display?.length ?? 0;
+
             return (
               <button
                 key={i}
                 onClick={() => {
-                  if (i < activeBox) {
-                    // Allow clicking back to re-edit a committed box
+                  if (i <= activeBox) {
                     setActiveBox(i);
                     setBuilder(emptyBuilder());
                   }
                 }}
-                className="relative flex items-center justify-center rounded-2xl font-bold transition-all duration-200"
                 style={{
-                  width: 70,
+                  width: 72,
                   height: 76,
-                  fontSize: displayChar && displayChar.length > 2 ? "1.2rem" : "1.9rem",
+                  borderRadius: 18,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: charLen > 3 ? "1rem" : charLen > 2 ? "1.3rem" : "1.9rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  position: "relative",
+                  transition: "all 0.18s",
                   background: isActive
-                    ? "linear-gradient(135deg, #312e81, #4338ca)"
+                    ? "linear-gradient(135deg,#312e81,#4338ca)"
                     : committed
-                    ? "linear-gradient(135deg, #1e3a5f, #1e40af)"
+                    ? "linear-gradient(135deg,#1e3a5f,#1e40af)"
                     : "rgba(255,255,255,0.05)",
-                  border: isActive
-                    ? "2px solid #818cf8"
-                    : committed
-                    ? "2px solid #3b82f6"
-                    : "2px solid rgba(255,255,255,0.12)",
-                  color:
-                    isActive && isPendingHalant
-                      ? "#fbbf24"
-                      : isActive
-                      ? "#e0e7ff"
-                      : "#c7d2fe",
+                  border: `2px solid ${isActive ? "#818cf8" : committed ? "#3b82f6" : "rgba(255,255,255,0.12)"}`,
+                  color: isActive && isPendingHalant ? "#fbbf24" : "#e0e7ff",
                   boxShadow: isActive
-                    ? "0 0 20px rgba(129,140,248,0.4), inset 0 1px 0 rgba(255,255,255,0.1)"
+                    ? "0 0 20px rgba(129,140,248,0.4)"
                     : committed
                     ? "0 4px 12px rgba(59,130,246,0.2)"
                     : "none",
                 }}
               >
-                {isEmpty ? (
+                {empty ? (
                   <span
                     style={{
-                      width: 24,
-                      height: 3,
-                      background: isActive ? "#818cf8" : "rgba(255,255,255,0.2)",
-                      borderRadius: 4,
                       display: "block",
+                      width: 22,
+                      height: 3,
+                      borderRadius: 4,
+                      background: isActive ? "#818cf8" : "rgba(255,255,255,0.18)",
                     }}
                   />
-                ) : (
-                  displayChar
-                )}
+                ) : display}
                 {isActive && (
                   <span
-                    className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full animate-pulse"
-                    style={{ background: isPendingHalant ? "#fbbf24" : "#818cf8" }}
+                    style={{
+                      position: "absolute",
+                      bottom: 6,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: isPendingHalant ? "#fbbf24" : "#818cf8",
+                      animation: "pulse 1.5s infinite",
+                    }}
                   />
                 )}
               </button>
@@ -358,177 +297,296 @@ export default function Game() {
           })}
         </div>
 
-        {/* Builder status line */}
-        <div className="text-center mt-2" style={{ height: 18 }}>
+        {/* Builder status */}
+        <div style={{ height: 16, textAlign: "center", marginTop: 4 }}>
           {isBuilding && (
-            <p className="text-xs" style={{ color: "#7c3aed" }}>
+            <p style={{ fontSize: 10, color: "#7c3aed", margin: 0 }}>
               {isPendingHalant
-                ? "🔗 Halant applied — now pick the next consonant to join"
-                : `Building akshara: ${builderDisplay} — tap ్ to cluster or a vowel to finish`}
+                ? "🔗 Halant — pick next consonant to cluster"
+                : `Building: ${builderDisplay} — add ్ to cluster, or pick a vowel to finish`}
             </p>
           )}
         </div>
       </div>
 
-      {/* ── Action row ── */}
-      <div className="flex gap-2 mt-1 mb-3">
-        <button
-          onClick={handleBackspace}
-          className="px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all active:scale-95"
+      {/* ── Modifier Shelf ──────────────────────────────────────────────────── */}
+      <div style={{ flexShrink: 0, paddingBottom: 6 }}>
+        {/* Label */}
+        <p
           style={{
-            background: "rgba(239,68,68,0.15)",
-            color: "#fca5a5",
-            border: "1px solid rgba(239,68,68,0.3)",
+            fontSize: 9,
+            textAlign: "center",
+            color: "rgba(165,180,252,0.5)",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            margin: "0 0 4px",
           }}
         >
-          ← చెరిపు
-        </button>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all active:scale-95"
-          style={{
-            background: "rgba(255,255,255,0.06)",
-            color: "#94a3b8",
-            border: "1px solid rgba(255,255,255,0.12)",
-          }}
-        >
-          మళ్ళీ
-        </button>
-        <button
-          onClick={handleNext}
-          className="px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all active:scale-95"
-          style={{
-            background: "rgba(99,102,241,0.25)",
-            color: "#a5b4fc",
-            border: "1px solid rgba(99,102,241,0.4)",
-          }}
-        >
-          తర్వాత →
-        </button>
-        <button
-          onClick={handleSubmit}
-          className="px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95"
-          style={{
-            background: "linear-gradient(135deg, #d97706, #f59e0b)",
-            color: "#1c1917",
-            border: "none",
-          }}
-        >
-          ✓ సమర్పించు
-        </button>
-      </div>
+          అచ్చులు &amp; గుర్తులు · Vowels &amp; Signs
+        </p>
 
-      {/* ── Secret Scroll — Vowel Signs ── */}
-      <div className="w-full mb-2">
-        <div className="flex items-center px-5 mb-2 gap-2">
-          <div className="h-px flex-1" style={{ background: "rgba(99,102,241,0.2)" }} />
-          <p className="text-xs text-indigo-400 uppercase tracking-widest whitespace-nowrap px-2">
-            🔮 రహస్య చుట్టు · Secret Scroll
-          </p>
-          <div className="h-px flex-1" style={{ background: "rgba(99,102,241,0.2)" }} />
-        </div>
-        <div
-          className="flex gap-2 overflow-x-auto px-5 pb-1"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {VOWEL_SIGNS.map(({ sign, label }) => {
-            const isHalant = sign === HALANT;
-            const isActive = isHalant ? isPendingHalant : builder.vowelSign === sign;
-            return (
-              <button
-                key={sign}
-                onClick={() => handleVowelSign(sign)}
-                className="flex-shrink-0 flex flex-col items-center justify-center rounded-2xl transition-all duration-150 active:scale-90"
-                style={{
-                  width: 58,
-                  height: 62,
-                  background: isActive
-                    ? isHalant
-                      ? "linear-gradient(135deg, #92400e, #d97706)"
-                      : "linear-gradient(135deg, #1d4ed8, #2563eb)"
-                    : isHalant
-                    ? "linear-gradient(135deg, rgba(217,119,6,0.2), rgba(217,119,6,0.1))"
-                    : "linear-gradient(135deg, rgba(29,78,216,0.2), rgba(37,99,235,0.1))",
-                  border: isActive
-                    ? isHalant
-                      ? "2px solid #fbbf24"
-                      : "2px solid #60a5fa"
-                    : isHalant
-                    ? "2px solid rgba(217,119,6,0.4)"
-                    : "2px solid rgba(59,130,246,0.3)",
-                  boxShadow: isActive
-                    ? isHalant
-                      ? "0 0 16px rgba(251,191,36,0.5)"
-                      : "0 0 16px rgba(96,165,250,0.5)"
-                    : "none",
-                }}
-              >
-                <span
-                  className="font-bold leading-none"
+        {/* Scroll container with fade masks */}
+        <div style={{ position: "relative" }}>
+          {/* Left fade */}
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 28,
+              background: "linear-gradient(to right,#16213e,transparent)",
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          />
+          {/* Right fade */}
+          <div
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 28,
+              background: "linear-gradient(to left,#0f3460,transparent)",
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          />
+
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              overflowX: "auto",
+              padding: "2px 16px 4px",
+              scrollbarWidth: "none",
+            }}
+          >
+            {MODIFIER_SHELF.map((char) => {
+              const isHalant = char === HALANT;
+              const isVowel = INDEPENDENT_VOWELS.has(char);
+              const isActive =
+                isHalant ? isPendingHalant : builder.vowelSign === char;
+
+              return (
+                <button
+                  key={char}
+                  onClick={() => handleModifier(char)}
                   style={{
-                    fontSize: "1.35rem",
-                    color: isActive
+                    flexShrink: 0,
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "1.3rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    background: isActive
                       ? isHalant
-                        ? "#fef3c7"
-                        : "#bfdbfe"
+                        ? "linear-gradient(135deg,#92400e,#d97706)"
+                        : "linear-gradient(135deg,#1d4ed8,#2563eb)"
+                      : isHalant
+                      ? "rgba(217,119,6,0.15)"
+                      : isVowel
+                      ? "rgba(16,185,129,0.12)"
+                      : "rgba(29,78,216,0.18)",
+                    border: `1.5px solid ${
+                      isActive
+                        ? isHalant ? "#fbbf24" : "#60a5fa"
+                        : isHalant
+                        ? "rgba(217,119,6,0.4)"
+                        : isVowel
+                        ? "rgba(16,185,129,0.35)"
+                        : "rgba(59,130,246,0.3)"
+                    }`,
+                    color: isActive
+                      ? isHalant ? "#fef3c7" : "#bfdbfe"
                       : isHalant
                       ? "#fbbf24"
+                      : isVowel
+                      ? "#6ee7b7"
                       : "#93c5fd",
+                    boxShadow: isActive
+                      ? isHalant
+                        ? "0 0 12px rgba(251,191,36,0.4)"
+                        : "0 0 12px rgba(96,165,250,0.4)"
+                      : "none",
                   }}
                 >
-                  {isHalant ? "క" + HALANT : "క" + sign}
-                </span>
-                <span
-                  className="mt-0.5"
-                  style={{
-                    fontSize: 9,
-                    color: isActive ? (isHalant ? "#fde68a" : "#93c5fd") : "#4b7fa8",
-                  }}
-                >
-                  {label}
-                </span>
-              </button>
-            );
-          })}
+                  {char}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* ── Consonant Keyboard ── */}
-      <div className="w-full px-4 pb-6">
-        <p className="text-xs text-indigo-400 uppercase tracking-widest mb-2 text-center">
-          హల్లులు · Consonants
-        </p>
+      {/* ── Consonant Grid ──────────────────────────────────────────────────── */}
+      <div
+        style={{
+          flex: 1,
+          padding: "0 10px",
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         <div
-          className="grid gap-2"
-          style={{ gridTemplateColumns: "repeat(5, 1fr)" }}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: "grid",
+            gridTemplateColumns: "repeat(5, 1fr)",
+            gridTemplateRows: "repeat(7, 1fr)",
+            gap: 6,
+          }}
         >
-          {CONSONANTS.map((char) => (
-            <button
-              key={char}
-              onClick={() => handleConsonant(char)}
-              className="flex items-center justify-center rounded-2xl text-2xl font-bold transition-all duration-100 active:scale-90"
-              style={{
-                height: 58,
-                background:
-                  "linear-gradient(160deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)",
-                border: "1.5px solid rgba(255,255,255,0.14)",
-                color: "#e2e8f0",
-                boxShadow:
-                  "0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
-              }}
-            >
-              {char}
-            </button>
-          ))}
+          {CONSONANT_ROWS.map((row, ri) =>
+            row.map((char) => (
+              <button
+                key={`${ri}-${char}`}
+                onClick={() => handleConsonant(char)}
+                style={{
+                  height: 52,
+                  borderRadius: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "1.55rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  background:
+                    "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)",
+                  border: "1.5px solid rgba(255,255,255,0.13)",
+                  color: "#e2e8f0",
+                  boxShadow:
+                    "0 2px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.07)",
+                  transition: "background 0.1s, transform 0.1s",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+                onPointerDown={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    "linear-gradient(160deg,rgba(139,92,246,0.45) 0%,rgba(99,102,241,0.35) 100%)";
+                  (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.93)";
+                }}
+                onPointerUp={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)";
+                  (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+                }}
+                onPointerLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)";
+                  (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+                }}
+              >
+                {char}
+              </button>
+            ))
+          )}
         </div>
       </div>
 
-      {/* Tip */}
-      <div className="pb-6 px-5 text-center">
-        <p className="text-xs" style={{ color: "rgba(148,163,184,0.45)" }}>
-          Tip: try రాష్ట్రపతి — ర+ా → ష + ్(halant) + ట + ్(halant) + ర → ప → త+ి
-        </p>
+      {/* ── Bottom Action Bar ───────────────────────────────────────────────── */}
+      <div
+        style={{
+          flexShrink: 0,
+          padding: "8px 10px 12px",
+          display: "grid",
+          gridTemplateColumns: "1fr auto 1fr",
+          gap: 6,
+        }}
+      >
+        {/* Enter */}
+        <button
+          onClick={handleSubmit}
+          style={{
+            height: 52,
+            borderRadius: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            gap: 1,
+            cursor: "pointer",
+            background: "linear-gradient(135deg,#d97706,#f59e0b)",
+            border: "none",
+            color: "#1c1917",
+            boxShadow: "0 4px 14px rgba(245,158,11,0.35)",
+            WebkitTapHighlightColor: "transparent",
+          }}
+          onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.95)"; }}
+          onPointerUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+          onPointerLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: "0.03em" }}>ENTER</span>
+          <span style={{ fontSize: 9, fontWeight: 600, opacity: 0.75 }}>సమర్పించు</span>
+        </button>
+
+        {/* క్ష */}
+        <button
+          onClick={handleKsha}
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.35rem",
+            fontWeight: 700,
+            cursor: "pointer",
+            background:
+              "linear-gradient(160deg,rgba(255,255,255,0.12) 0%,rgba(255,255,255,0.06) 100%)",
+            border: "1.5px solid rgba(255,255,255,0.2)",
+            color: "#e2e8f0",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+            WebkitTapHighlightColor: "transparent",
+          }}
+          onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.92)"; }}
+          onPointerUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+          onPointerLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+        >
+          క్ష
+        </button>
+
+        {/* Backspace */}
+        <button
+          onClick={handleBackspace}
+          style={{
+            height: 52,
+            borderRadius: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            gap: 1,
+            cursor: "pointer",
+            background: "rgba(239,68,68,0.14)",
+            border: "1.5px solid rgba(239,68,68,0.3)",
+            color: "#fca5a5",
+            WebkitTapHighlightColor: "transparent",
+          }}
+          onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.95)"; }}
+          onPointerUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+          onPointerLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+        >
+          <span style={{ fontSize: 18, lineHeight: 1 }}>⌫</span>
+          <span style={{ fontSize: 9, fontWeight: 600, opacity: 0.75 }}>చెరిపివేయి</span>
+        </button>
       </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+      `}</style>
     </div>
   );
 }
