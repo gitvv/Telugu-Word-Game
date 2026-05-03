@@ -14,6 +14,11 @@ const INDEPENDENT_VOWELS = new Set([
 // Non-advancing modifiers: attach to current box without moving cursor
 const NON_ADVANCING_MODIFIERS = new Set([ANUSVARA, RRUKAR]);
 
+// Dependent vowel signs (matras) — used when parsing a committed akshara for deletion
+const DEPENDENT_VOWEL_SIGNS = new Set([
+  "ా", "ి", "ీ", "ు", "ూ", RRUKAR, "ె", "ే", "ై", "ొ", "ో", "ౌ",
+]);
+
 const MODIFIER_SHELF = [
   // Independent vowels
   "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
@@ -61,6 +66,23 @@ function renderBuilder(b: AksharaBuilder): string {
 function finalizeBuilder(b: AksharaBuilder): string {
   if (b.consonants.length === 0) return "";
   return b.consonants.join(HALANT) + (b.vowelSign ?? "");
+}
+
+// Parse a committed akshara string back into an AksharaBuilder for step-by-step deletion.
+// Strips the trailing vowel sign (if any) or anusvara, then splits the rest by halant.
+function reopenCommitted(s: string): AksharaBuilder {
+  const codePoints = [...s]; // spread respects Unicode scalar values
+  const last = codePoints[codePoints.length - 1];
+  let vowelSign: string | null = null;
+  let base = s;
+  if (DEPENDENT_VOWEL_SIGNS.has(last)) {
+    vowelSign = last;
+    base = codePoints.slice(0, -1).join("");
+  } else if (last === ANUSVARA) {
+    base = codePoints.slice(0, -1).join(""); // strip ం; no vowelSign
+  }
+  const consonants = base.split(HALANT).filter(Boolean);
+  return { consonants, vowelSign, pendingHalant: false };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -215,9 +237,30 @@ export default function Game() {
       return;
     }
     if (builder.consonants.length === 1) { setBuilder(emptyBuilder()); return; }
-    // Builder is fully empty — clear the active box if it has committed content
+    // Builder fully empty — peel the committed box one layer at a time
     if (boxes[activeBox]) {
+      const content = boxes[activeBox];
+      // Bare single code-point (e.g. plain "ప") — clear in one step
+      if ([...content].length === 1) {
+        setBoxes((bx) => { const nx = [...bx]; nx[activeBox] = ""; return nx; });
+        return;
+      }
+      // Complex akshara — re-open into builder and remove one layer
+      const reopened = reopenCommitted(content);
       setBoxes((bx) => { const nx = [...bx]; nx[activeBox] = ""; return nx; });
+      if (reopened.vowelSign) {
+        // Remove vowel sign first, keep consonant cluster visible in builder
+        setBuilder({ ...reopened, vowelSign: null });
+      } else {
+        // No vowel sign left — peel the last conjunct consonant (or keep single for one more step)
+        setBuilder({
+          consonants: reopened.consonants.length > 1
+            ? reopened.consonants.slice(0, -1)
+            : reopened.consonants,
+          vowelSign: null,
+          pendingHalant: false,
+        });
+      }
       return;
     }
     // Active box empty — step back to the previous box and clear it
