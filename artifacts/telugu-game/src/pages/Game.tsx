@@ -169,7 +169,17 @@ export default function Game() {
     }
 
     if (char === HALANT) {
-      if (builder.consonants.length === 0) { toast("Pick a consonant first, then ్"); return; }
+      if (builder.consonants.length === 0) {
+        // Re-open a committed box: pull its consonants back into the builder
+        if (boxes[activeBox]) {
+          const parts = boxes[activeBox].split(HALANT);
+          setBoxes((bx) => { const nx = [...bx]; nx[activeBox] = ""; return nx; });
+          setBuilder({ consonants: parts, vowelSign: null, pendingHalant: true });
+          return;
+        }
+        toast("Pick a consonant first, then ్");
+        return;
+      }
       setBuilder((prev) => ({ ...prev, pendingHalant: true, vowelSign: null }));
       return;
     }
