@@ -205,6 +205,12 @@ export default function Game() {
       return;
     }
     if (builder.consonants.length === 1) { setBuilder(emptyBuilder()); return; }
+    // Builder is fully empty — clear the active box if it has committed content
+    if (boxes[activeBox]) {
+      setBoxes((bx) => { const nx = [...bx]; nx[activeBox] = ""; return nx; });
+      return;
+    }
+    // Active box empty — step back to the previous box and clear it
     if (activeBox > 0) {
       const prev = activeBox - 1;
       setActiveBox(prev);
