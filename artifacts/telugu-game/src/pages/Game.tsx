@@ -289,7 +289,7 @@ export default function Game() {
             const isActive = i === activeBox;
             const display = isActive && isBuilding ? builderDisplay : committed;
             const empty = !display;
-            const charLen = display?.length ?? 0;
+            const charLen = display ? [...new Intl.Segmenter().segment(display)].length : 0;
 
             return (
               <button
