@@ -14,13 +14,12 @@ const INDEPENDENT_VOWELS = new Set([
 // Non-advancing modifiers: attach to current box without moving cursor
 const NON_ADVANCING_MODIFIERS = new Set([ANUSVARA, RRUKAR]);
 
-// Exact shelf order as specified (ృ appears in both positions)
 const MODIFIER_SHELF = [
-  // Independent vowels + ృ in phonetic position
-  "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", RRUKAR, "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
+  // Independent vowels
+  "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
   // The Bridge
   ANUSVARA,
-  // Dependent vowel signs with ృ in its matra position
+  // Dependent vowel signs (ృ between ూ and ె)
   "ా", "ి", "ీ", "ు", "ూ", RRUKAR, "ె", "ే", "ై", "ొ", "ో", "ౌ",
   // The Glue
   HALANT,
