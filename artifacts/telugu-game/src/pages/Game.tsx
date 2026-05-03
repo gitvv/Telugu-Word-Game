@@ -4,21 +4,24 @@ import { useState, useRef } from "react";
 
 const HALANT = "్";
 const ANUSVARA = "ం";
+const RRUKAR = "ృ";
 
 // Independent vowels (standalone — fill box directly)
 const INDEPENDENT_VOWELS = new Set([
   "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
 ]);
 
-// Traditional phonetic order:
-// Independent Vowels → Anusvara → Dependent Signs → Halant
+// Non-advancing modifiers: attach to current box without moving cursor
+const NON_ADVANCING_MODIFIERS = new Set([ANUSVARA, RRUKAR]);
+
+// Exact shelf order as specified (ృ appears in both positions)
 const MODIFIER_SHELF = [
-  // Independent vowels
-  "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
+  // Independent vowels + ృ in phonetic position
+  "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", RRUKAR, "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
   // The Bridge
   ANUSVARA,
-  // Dependent vowel signs
-  "ా", "ి", "ీ", "ు", "ూ", "ె", "ే", "ై", "ొ", "ో", "ౌ",
+  // Dependent vowel signs with ృ in its matra position
+  "ా", "ి", "ీ", "ు", "ూ", RRUKAR, "ె", "ే", "ై", "ొ", "ో", "ౌ",
   // The Glue
   HALANT,
 ];
@@ -127,34 +130,29 @@ export default function Game() {
   // ── Modifier shelf ─────────────────────────────────────────────────────────
   function handleModifier(char: string) {
     // ── Anusvara: universal modifier — attaches to active box, no cursor advance
-    if (char === ANUSVARA) {
-      // Case 1: builder has in-progress consonants → commit them + ం, stay on same box
+    // ── Non-advancing modifiers: ం (anusvara) and ృ (rrukar) ──────────────────
+    if (NON_ADVANCING_MODIFIERS.has(char)) {
       if (builder.consonants.length > 0) {
-        const akshara = finalizeBuilder({ ...builder, pendingHalant: false }) + ANUSVARA;
+        // ృ acts as a vowel sign on the consonant cluster (కృ);
+        // ం appends after the finalized akshara (కం)
+        const akshara = char === RRUKAR
+          ? finalizeBuilder({ ...builder, vowelSign: RRUKAR, pendingHalant: false })
+          : finalizeBuilder({ ...builder, pendingHalant: false }) + char;
         setBoxes((prev) => { const next = [...prev]; next[activeBox] = akshara; return next; });
         setBuilder(emptyBuilder());
-        // Do NOT advance activeBox
-        return;
+        return; // Do NOT advance activeBox
       }
-      // Case 2: active box already has a committed akshara → append ం to it, stay
+      // Active box already committed → append, stay
       if (boxes[activeBox]) {
-        setBoxes((prev) => {
-          const next = [...prev];
-          next[activeBox] = next[activeBox] + ANUSVARA;
-          return next;
-        });
+        setBoxes((prev) => { const next = [...prev]; next[activeBox] += char; return next; });
         return;
       }
-      // Case 3: active box empty, go back and append ం to the previous box
+      // Active box empty → go back and append to the previous box
       if (activeBox > 0) {
-        setBoxes((prev) => {
-          const next = [...prev];
-          next[activeBox - 1] = next[activeBox - 1] + ANUSVARA;
-          return next;
-        });
+        setBoxes((prev) => { const next = [...prev]; next[activeBox - 1] += char; return next; });
         return;
       }
-      toast("Nothing to attach ం to yet!");
+      toast(`Nothing to attach ${char} to yet!`);
       return;
     }
 
@@ -411,7 +409,7 @@ export default function Game() {
               scrollbarWidth: "none",
             }}
           >
-            {MODIFIER_SHELF.map((char) => {
+            {MODIFIER_SHELF.map((char, idx) => {
               const isHalant = char === HALANT;
               const isVowel = INDEPENDENT_VOWELS.has(char);
               const isActive =
@@ -419,7 +417,7 @@ export default function Game() {
 
               return (
                 <button
-                  key={char}
+                  key={`${char}-${idx}`}
                   onClick={() => handleModifier(char)}
                   style={{
                     flexShrink: 0,
