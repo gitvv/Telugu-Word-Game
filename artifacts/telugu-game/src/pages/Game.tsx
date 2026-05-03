@@ -295,10 +295,13 @@ export default function Game() {
               <button
                 key={i}
                 onClick={() => {
-                  if (i <= activeBox) {
-                    setActiveBox(i);
-                    setBuilder(emptyBuilder());
+                  // Auto-commit any in-progress builder before jumping to another box
+                  if (i !== activeBox && builder.consonants.length > 0 && activeBox < WORD_LENGTH) {
+                    const akshara = finalizeBuilder({ ...builder, pendingHalant: false });
+                    setBoxes(bx => { const nx = [...bx]; nx[activeBox] = akshara; return nx; });
                   }
+                  setActiveBox(i);
+                  setBuilder(emptyBuilder());
                 }}
                 style={{
                   width: 72,
