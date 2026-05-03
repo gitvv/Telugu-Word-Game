@@ -1,0 +1,57 @@
+"Project: Telugu Word Game 'Okka Mata' - Alpha Engine Build
+
+1. Global Configuration (The Switchboard):
+At the very top of the script, create two toggle variables:
+
+const enableHeatmap = true;
+
+const enableInk = true;
+
+const secretWord = 'రాష్ట్రపతి'; (Hardcoded for testing).
+
+2. UI Layout & Styling:
+Maintain the dark-mode theme with neon glows and the following structure:
+
+Guess Area: 4 large glowing boxes. The active box should have a pulsing dot.
+
+Modifier Shelf (Scrollable Row):
+
+Content: [అ, ఆ, ఇ, ఈ, ఉ, ఊ, ఎ, ఏ, ఐ, ఒ, ఓ, ఔ, ం, ా, ి, ీ, ు, ూ, ె, ే, ై, ొ, ో, ౌ, ్]
+
+Logic: These are 'builders.' Tapping them attaches the sign to the character in the active box without moving to the next box. The Anusvara (ం) must attach to both vowels and consonants.
+
+Consonant Grid (5 Columns x 7 Rows):
+
+Row 1: క, ఖ, గ, ఘ, ఙ | Row 2: చ, ఛ, జ, ఝ, ఞ | Row 3: ట, ఠ, డ, ఢ, ణ
+
+Row 4: త, థ, ద, ధ, న | Row 5: ప, ఫ, బ, భ, మ | Row 6: య, ర, ల, వ, శ
+
+Row 7: ష, స, హ, ళ, ఱ
+
+Bottom Action Bar (Pinned): [ENTER (సమర్పించు) | క్ష | ⌫ చెరిపివేయి]
+
+3. Ink Economy Logic (Active if enableInk is true):
+
+Add a thin purple progress bar at the very top of the viewport.
+
+Starting Ink: 100%.
+
+Depletion: Consonant = -2%, Vowel Sign = -3%, Halant (్) = -5%, Anusvara = -3%.
+
+Refill: If a guess results in a Green (perfect match) Akshara, refill 5% ink.
+
+Failure State: If ink reaches 0%, show a 'Dry Pen' overlay with a 'Reset Game' button.
+
+4. Phonetic Heatmap Logic (Active if enableHeatmap is true):
+Feedback triggers only after ENTER is pressed:
+
+Akshara Colors: Color the guess boxes: Green (Exact match), Yellow (Base consonant is correct, but sign/position is wrong), Gray (Sound not in word).
+
+Varga (Row) Glow:
+
+Apply a .row-hot CSS class (vibrant orange outer glow) to an entire 5-button row if any letter from that row is in the secret word.
+
+Apply a .row-cold CSS class (50% opacity, blue tint) if no letters from that row are in the word.
+
+5. Typing Mechanic (The 'LEGO' Logic):
+Characters are built in the active tile. Example: ర + ా = రా. To make a cluster like 'ష్ట్ర', the user taps ష + ్ + ట + ్ + ర. Each step modifies the single tile until the user moves to the next box or hits ENTER."
