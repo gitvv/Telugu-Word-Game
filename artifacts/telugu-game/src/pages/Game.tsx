@@ -100,17 +100,28 @@ export default function Game() {
 
   // ── Consonant ──────────────────────────────────────────────────────────────
   function handleConsonant(char: string) {
+    // Case A: builder empty but active box already committed (e.g. after ం) → advance first
+    if (builder.consonants.length === 0 && boxes[activeBox]) {
+      const next = activeBox + 1;
+      if (next >= WORD_LENGTH) { toast("All boxes filled — submit or backspace!"); return; }
+      setActiveBox(next);
+      setBuilder({ consonants: [char], vowelSign: null, pendingHalant: false });
+      return;
+    }
+
     if (activeBox >= WORD_LENGTH) { toast("All boxes filled — submit or backspace!"); return; }
-    setBuilder((prev) => {
-      if (prev.consonants.length === 0 || prev.pendingHalant) {
-        return { consonants: [...prev.consonants, char], vowelSign: null, pendingHalant: false };
-      }
-      // No halant pending — finalize current, start new
-      const akshara = finalizeBuilder(prev);
-      setBoxes((bx) => { const nx = [...bx]; nx[activeBox] = akshara; return nx; });
-      setActiveBox((ab) => Math.min(ab + 1, WORD_LENGTH));
-      return { consonants: [char], vowelSign: null, pendingHalant: false };
-    });
+
+    // Case B: start new akshara or extend a pending halant cluster
+    if (builder.consonants.length === 0 || builder.pendingHalant) {
+      setBuilder((prev) => ({ consonants: [...prev.consonants, char], vowelSign: null, pendingHalant: false }));
+      return;
+    }
+
+    // Case C: builder has consonants with no pending halant → finalize current, start next
+    const akshara = finalizeBuilder(builder);
+    setBoxes((bx) => { const nx = [...bx]; nx[activeBox] = akshara; return nx; });
+    setActiveBox((ab) => Math.min(ab + 1, WORD_LENGTH));
+    setBuilder({ consonants: [char], vowelSign: null, pendingHalant: false });
   }
 
   // ── Modifier shelf ─────────────────────────────────────────────────────────
