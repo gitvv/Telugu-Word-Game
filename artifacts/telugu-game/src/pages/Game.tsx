@@ -93,6 +93,9 @@ export default function Game() {
   const [builder, setBuilder] = useState<AksharaBuilder>(emptyBuilder());
   const [hint, setHint] = useState<string | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set to true when user explicitly clicks a box to edit it.
+  // Lets handleConsonant overwrite in-place rather than advancing (ం behaviour).
+  const explicitNavRef = useRef(false);
 
   function toast(msg: string) {
     if (hintTimer.current) clearTimeout(hintTimer.current);
@@ -124,12 +127,22 @@ export default function Game() {
 
   // ── Consonant ──────────────────────────────────────────────────────────────
   function handleConsonant(char: string) {
-    // Case A: builder empty but active box already committed (e.g. after ం) → advance first
+    const wasExplicitNav = explicitNavRef.current;
+    explicitNavRef.current = false;
+
+    // Case A: builder empty but active box already committed
     if (builder.consonants.length === 0 && boxes[activeBox]) {
-      const next = activeBox + 1;
-      if (next >= WORD_LENGTH) { toast("All boxes filled — submit or backspace!"); return; }
-      setActiveBox(next);
-      setBuilder({ consonants: [char], vowelSign: null, pendingHalant: false });
+      if (wasExplicitNav) {
+        // User explicitly clicked this box to edit — clear it and overwrite in-place
+        setBoxes((bx) => { const nx = [...bx]; nx[activeBox] = ""; return nx; });
+        setBuilder({ consonants: [char], vowelSign: null, pendingHalant: false });
+      } else {
+        // Cursor landed here via ం (no-advance) — advance to next box
+        const next = activeBox + 1;
+        if (next >= WORD_LENGTH) { toast("All boxes filled — submit or backspace!"); return; }
+        setActiveBox(next);
+        setBuilder({ consonants: [char], vowelSign: null, pendingHalant: false });
+      }
       return;
     }
 
@@ -237,37 +250,35 @@ export default function Game() {
       return;
     }
     if (builder.consonants.length === 1) { setBuilder(emptyBuilder()); return; }
-    // Builder fully empty — peel the committed box one layer at a time
-    if (boxes[activeBox]) {
-      const content = boxes[activeBox];
-      // Bare single code-point (e.g. plain "ప") — clear in one step
-      if ([...content].length === 1) {
-        setBoxes((bx) => { const nx = [...bx]; nx[activeBox] = ""; return nx; });
-        return;
-      }
-      // Complex akshara — re-open into builder and remove one layer
-      const reopened = reopenCommitted(content);
-      setBoxes((bx) => { const nx = [...bx]; nx[activeBox] = ""; return nx; });
-      if (reopened.vowelSign) {
-        // Remove vowel sign first, keep consonant cluster visible in builder
-        setBuilder({ ...reopened, vowelSign: null });
-      } else {
-        // No vowel sign left — peel the last conjunct consonant (or keep single for one more step)
-        setBuilder({
-          consonants: reopened.consonants.length > 1
-            ? reopened.consonants.slice(0, -1)
-            : reopened.consonants,
-          vowelSign: null,
-          pendingHalant: false,
-        });
-      }
+    // Builder fully empty — find the right box to peel.
+    // If activeBox is past the array (all boxes filled) or the current box is empty,
+    // step back to the previous box first.
+    let targetBox = activeBox;
+    if (!boxes[targetBox]) {
+      if (targetBox <= 0) return;
+      targetBox = targetBox - 1;
+      setActiveBox(targetBox);
+    }
+    if (!boxes[targetBox]) return;
+    const content = boxes[targetBox];
+    // Bare single code-point (e.g. plain "ప") — clear in one step
+    if ([...content].length === 1) {
+      setBoxes((bx) => { const nx = [...bx]; nx[targetBox] = ""; return nx; });
       return;
     }
-    // Active box empty — step back to the previous box and clear it
-    if (activeBox > 0) {
-      const prev = activeBox - 1;
-      setActiveBox(prev);
-      setBoxes((bx) => { const nx = [...bx]; nx[prev] = ""; return nx; });
+    // Complex akshara — re-open into builder and peel one layer
+    const reopened = reopenCommitted(content);
+    setBoxes((bx) => { const nx = [...bx]; nx[targetBox] = ""; return nx; });
+    if (reopened.vowelSign) {
+      setBuilder({ ...reopened, vowelSign: null });
+    } else {
+      setBuilder({
+        consonants: reopened.consonants.length > 1
+          ? reopened.consonants.slice(0, -1)
+          : reopened.consonants,
+        vowelSign: null,
+        pendingHalant: false,
+      });
     }
   }
 
@@ -343,6 +354,7 @@ export default function Game() {
                     const akshara = finalizeBuilder({ ...builder, pendingHalant: false });
                     setBoxes(bx => { const nx = [...bx]; nx[activeBox] = akshara; return nx; });
                   }
+                  explicitNavRef.current = true;
                   setActiveBox(i);
                   setBuilder(emptyBuilder());
                 }}
