@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 
 // ─── Switchboard ──────────────────────────────────────────────────────────────
 const ENABLE_STANDARD_FEEDBACK = true;
-const ENABLE_PHONETIC_HEATMAP  = false;
+const ENABLE_PHONETIC_HEATMAP  = true;
 const ENABLE_INK_ECONOMY       = false;
 
 // ─── Secret word & feedback helpers ───────────────────────────────────────────
@@ -27,6 +27,13 @@ function computeFeedback(
     if (base && secretBases.includes(base)) return "yellow";
     return "gray";
   });
+}
+
+function computeHeatmap(secretAksharas: string[]): ("hot" | "cold")[] {
+  const secretBases = new Set(secretAksharas.map(getBaseConsonant));
+  return CONSONANT_ROWS.map((row) =>
+    row.some((c) => secretBases.has(c)) ? "hot" : "cold"
+  );
 }
 
 // ─── Telugu data ──────────────────────────────────────────────────────────────
@@ -133,11 +140,13 @@ export default function Game() {
   const explicitNavRef = useRef(false);
   const [feedback, setFeedback] = useState<(FeedbackColor | null)[]>(Array(WORD_LENGTH).fill(null));
   const [revealed, setRevealed] = useState(false);
+  const [rowHeatmap, setRowHeatmap] = useState<("hot" | "cold" | null)[]>(Array(CONSONANT_ROWS.length).fill(null));
 
-  // Clear feedback colours whenever the user edits any box
+  // Clear feedback colours and heatmap whenever the user edits any box
   useEffect(() => {
     setFeedback(Array(WORD_LENGTH).fill(null));
     setRevealed(false);
+    setRowHeatmap(Array(CONSONANT_ROWS.length).fill(null));
   }, [boxes]);
 
   function toast(msg: string) {
@@ -170,6 +179,7 @@ export default function Game() {
 
   // ── Consonant ──────────────────────────────────────────────────────────────
   function handleConsonant(char: string) {
+    if (ENABLE_PHONETIC_HEATMAP) setRowHeatmap(Array(CONSONANT_ROWS.length).fill(null));
     const wasExplicitNav = explicitNavRef.current;
     explicitNavRef.current = false;
 
@@ -269,6 +279,7 @@ export default function Game() {
 
   // ── Backspace ──────────────────────────────────────────────────────────────
   function handleBackspace() {
+    if (ENABLE_PHONETIC_HEATMAP) setRowHeatmap(Array(CONSONANT_ROWS.length).fill(null));
     if (builder.pendingHalant) { setBuilder((p) => ({ ...p, pendingHalant: false })); return; }
     if (builder.vowelSign)     { setBuilder((p) => ({ ...p, vowelSign: null })); return; }
     if (builder.consonants.length > 1) {
@@ -327,6 +338,9 @@ export default function Game() {
       const computed = computeFeedback(finalBoxes, SECRET_AKSHARAS);
       setFeedback(computed);
       setTimeout(() => setRevealed(true), 30);
+    }
+    if (ENABLE_PHONETIC_HEATMAP) {
+      setRowHeatmap(computeHeatmap(SECRET_AKSHARAS));
     }
     toast(`✓ సమర్పించారు: ${finalBoxes.join("")}`);
   }
@@ -615,55 +629,74 @@ export default function Game() {
           style={{
             flex: 1,
             minHeight: 0,
-            display: "grid",
-            gridTemplateColumns: "repeat(5, 1fr)",
-            gridTemplateRows: "repeat(7, 1fr)",
+            display: "flex",
+            flexDirection: "column",
             gap: 6,
           }}
         >
-          {CONSONANT_ROWS.map((row, ri) =>
-            row.map((char) => (
-              <button
-                key={`${ri}-${char}`}
-                onClick={() => handleConsonant(char)}
+          {CONSONANT_ROWS.map((row, ri) => {
+            const heat = ENABLE_PHONETIC_HEATMAP ? rowHeatmap[ri] : null;
+            return (
+              <div
+                key={ri}
                 style={{
-                  height: 52,
-                  borderRadius: 14,
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.55rem",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  background:
-                    "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)",
-                  border: "1.5px solid rgba(255,255,255,0.13)",
-                  color: "#e2e8f0",
-                  boxShadow:
-                    "0 2px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.07)",
-                  transition: "background 0.1s, transform 0.1s",
-                  WebkitTapHighlightColor: "transparent",
-                }}
-                onPointerDown={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    "linear-gradient(160deg,rgba(139,92,246,0.45) 0%,rgba(99,102,241,0.35) 100%)";
-                  (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.93)";
-                }}
-                onPointerUp={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)";
-                  (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
-                }}
-                onPointerLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)";
-                  (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+                  flex: 1,
+                  gap: 6,
+                  borderRadius: 10,
+                  transition: "opacity 0.35s ease, filter 0.35s ease, box-shadow 0.35s ease",
+                  ...(heat === "hot" ? {
+                    boxShadow: "0 0 14px rgba(251,146,60,0.55), 0 0 0 1px rgba(251,146,60,0.35)",
+                  } : heat === "cold" ? {
+                    opacity: 0.28,
+                    filter: "grayscale(75%)",
+                  } : {}),
                 }}
               >
-                {char}
-              </button>
-            ))
-          )}
+                {row.map((char) => (
+                  <button
+                    key={char}
+                    onClick={() => handleConsonant(char)}
+                    style={{
+                      flex: 1,
+                      borderRadius: 14,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "1.55rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      background:
+                        "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)",
+                      border: "1.5px solid rgba(255,255,255,0.13)",
+                      color: "#e2e8f0",
+                      boxShadow:
+                        "0 2px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.07)",
+                      transition: "background 0.1s, transform 0.1s",
+                      WebkitTapHighlightColor: "transparent",
+                    }}
+                    onPointerDown={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background =
+                        "linear-gradient(160deg,rgba(139,92,246,0.45) 0%,rgba(99,102,241,0.35) 100%)";
+                      (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.93)";
+                    }}
+                    onPointerUp={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background =
+                        "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)";
+                      (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+                    }}
+                    onPointerLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background =
+                        "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)";
+                      (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+                    }}
+                  >
+                    {char}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </div>
       </div>
 
