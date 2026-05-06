@@ -446,9 +446,9 @@ export default function Game() {
                   position: "absolute",
                   inset: 0,
                   background:
-                    fbColor === "green"  ? "#2ecc71" :
-                    fbColor === "yellow" ? "#f1c40f" :
-                    fbColor === "gray"   ? "#7f8c8d" : "transparent",
+                    fbColor === "green"  ? "#10b981" :
+                    fbColor === "yellow" ? "#f59e0b" :
+                    fbColor === "gray"   ? "#334155" : "transparent",
                   opacity: revealed && fbColor ? 1 : 0,
                   transition: "opacity 0.5s ease",
                   zIndex: 0,
