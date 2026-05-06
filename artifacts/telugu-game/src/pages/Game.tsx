@@ -1,4 +1,33 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+
+// ─── Switchboard ──────────────────────────────────────────────────────────────
+const ENABLE_STANDARD_FEEDBACK = true;
+const ENABLE_PHONETIC_HEATMAP  = false;
+const ENABLE_INK_ECONOMY       = false;
+
+// ─── Secret word & feedback helpers ───────────────────────────────────────────
+const SECRET_WORD = "రాష్ట్రపతి";
+const SECRET_AKSHARAS: string[] =
+  [...new Intl.Segmenter().segment(SECRET_WORD)].map((s) => s.segment);
+
+type FeedbackColor = "green" | "yellow" | "gray";
+
+function getBaseConsonant(akshara: string): string {
+  return [...akshara][0] ?? "";
+}
+
+function computeFeedback(
+  guessBoxes: string[],
+  secretAksharas: string[]
+): FeedbackColor[] {
+  const secretBases = secretAksharas.map(getBaseConsonant);
+  return guessBoxes.map((guess, i) => {
+    if (guess === secretAksharas[i]) return "green";
+    const base = getBaseConsonant(guess);
+    if (base && secretBases.includes(base)) return "yellow";
+    return "gray";
+  });
+}
 
 // ─── Telugu data ──────────────────────────────────────────────────────────────
 
@@ -102,6 +131,14 @@ export default function Game() {
   // Set to true when user explicitly clicks a box to edit it.
   // Lets handleConsonant overwrite in-place rather than advancing (ం behaviour).
   const explicitNavRef = useRef(false);
+  const [feedback, setFeedback] = useState<(FeedbackColor | null)[]>(Array(WORD_LENGTH).fill(null));
+  const [revealed, setRevealed] = useState(false);
+
+  // Clear feedback colours whenever the user edits any box
+  useEffect(() => {
+    setFeedback(Array(WORD_LENGTH).fill(null));
+    setRevealed(false);
+  }, [boxes]);
 
   function toast(msg: string) {
     if (hintTimer.current) clearTimeout(hintTimer.current);
@@ -303,6 +340,11 @@ export default function Game() {
       cur++;
     }
     if (finalBoxes.filter(Boolean).length < WORD_LENGTH) { toast("Fill all 4 aksharas first!"); return; }
+    if (ENABLE_STANDARD_FEEDBACK) {
+      const computed = computeFeedback(finalBoxes, SECRET_AKSHARAS);
+      setFeedback(computed);
+      setTimeout(() => setRevealed(true), 30);
+    }
     toast(`✓ సమర్పించారు: ${finalBoxes.join("")}`);
   }
 
@@ -356,6 +398,7 @@ export default function Game() {
             const display = isActive && isBuilding ? builderDisplay : committed;
             const empty = !display;
             const charLen = display ? [...new Intl.Segmenter().segment(display)].length : 0;
+            const fbColor = feedback[i] ?? null;
 
             return (
               <button
@@ -377,12 +420,13 @@ export default function Game() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  overflow: "hidden",
                   fontSize: charLen > 3 ? "1rem" : charLen > 2 ? "1.3rem" : "1.9rem",
                   fontWeight: 700,
                   cursor: "pointer",
                   flexShrink: 0,
                   position: "relative",
-                  transition: "all 0.18s",
+                  transition: "box-shadow 0.18s, transform 0.18s, border-color 0.18s",
                   background: isActive
                     ? "linear-gradient(135deg,#312e81,#4338ca)"
                     : committed
@@ -397,17 +441,33 @@ export default function Game() {
                     : "none",
                 }}
               >
-                {empty ? (
-                  <span
-                    style={{
-                      display: "block",
-                      width: 22,
-                      height: 3,
-                      borderRadius: 4,
-                      background: isActive ? "#818cf8" : "rgba(255,255,255,0.18)",
-                    }}
-                  />
-                ) : display}
+                {/* Feedback colour overlay — fades in 0.5s after ENTER */}
+                <span style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    fbColor === "green"  ? "#2ecc71" :
+                    fbColor === "yellow" ? "#f1c40f" :
+                    fbColor === "gray"   ? "#7f8c8d" : "transparent",
+                  opacity: revealed && fbColor ? 1 : 0,
+                  transition: "opacity 0.5s ease",
+                  zIndex: 0,
+                  pointerEvents: "none",
+                }} />
+                {/* Content sits above the overlay */}
+                <span style={{ position: "relative", zIndex: 1 }}>
+                  {empty ? (
+                    <span
+                      style={{
+                        display: "block",
+                        width: 22,
+                        height: 3,
+                        borderRadius: 4,
+                        background: isActive ? "#818cf8" : "rgba(255,255,255,0.18)",
+                      }}
+                    />
+                  ) : display}
+                </span>
                 {isActive && (
                   <span
                     style={{
@@ -420,6 +480,7 @@ export default function Game() {
                       borderRadius: "50%",
                       background: isPendingHalant ? "#fbbf24" : "#818cf8",
                       animation: "pulse 1.5s infinite",
+                      zIndex: 1,
                     }}
                   />
                 )}
