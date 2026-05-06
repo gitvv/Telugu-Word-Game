@@ -16,17 +16,83 @@ function getBaseConsonant(akshara: string): string {
   return [...akshara][0] ?? "";
 }
 
+// True when the akshara contains a conjunct consonant (ఒత్తు / halant-joined pair).
+function hasConjunct(akshara: string): boolean {
+  return [...akshara].includes("్");
+}
+
+// 5-pass priority system — handles duplicate letters correctly.
 function computeFeedback(
   guessBoxes: string[],
   secretAksharas: string[]
 ): FeedbackColor[] {
-  const secretBases = secretAksharas.map(getBaseConsonant);
-  return guessBoxes.map((guess, i) => {
-    if (guess === secretAksharas[i]) return "green";
-    const base = getBaseConsonant(guess);
-    if (base && secretBases.includes(base)) return "yellow";
-    return "gray";
-  });
+  const result: (FeedbackColor | null)[] = Array(WORD_LENGTH).fill(null);
+
+  // Build a mutable inventory of remaining secret aksharas.
+  const inventory = new Map<string, number>();
+  for (const a of secretAksharas) {
+    inventory.set(a, (inventory.get(a) ?? 0) + 1);
+  }
+
+  // Pass 1 — Green: exact akshara at exact position.
+  for (let i = 0; i < WORD_LENGTH; i++) {
+    if (guessBoxes[i] === secretAksharas[i]) {
+      result[i] = "green";
+      inventory.set(secretAksharas[i], (inventory.get(secretAksharas[i]) ?? 0) - 1);
+    }
+  }
+
+  // Pass 2 — Exact Yellow: exact akshara exists somewhere else in the secret.
+  for (let i = 0; i < WORD_LENGTH; i++) {
+    if (result[i] !== null) continue;
+    const g = guessBoxes[i];
+    const avail = inventory.get(g) ?? 0;
+    if (avail > 0) {
+      result[i] = "yellow";
+      inventory.set(g, avail - 1);
+    }
+  }
+
+  // Pass 3 — Clean Yellow: base consonant match and guess has NO conjunct (ఒత్తు).
+  for (let i = 0; i < WORD_LENGTH; i++) {
+    if (result[i] !== null) continue;
+    if (hasConjunct(guessBoxes[i])) continue;
+    const gBase = getBaseConsonant(guessBoxes[i]);
+    for (let j = 0; j < WORD_LENGTH; j++) {
+      if (getBaseConsonant(secretAksharas[j]) === gBase) {
+        const avail = inventory.get(secretAksharas[j]) ?? 0;
+        if (avail > 0) {
+          result[i] = "yellow";
+          inventory.set(secretAksharas[j], avail - 1);
+          break;
+        }
+      }
+    }
+  }
+
+  // Pass 4 — Messy Yellow: base consonant match but guess HAS a conjunct (ఒత్తు).
+  for (let i = 0; i < WORD_LENGTH; i++) {
+    if (result[i] !== null) continue;
+    if (!hasConjunct(guessBoxes[i])) continue;
+    const gBase = getBaseConsonant(guessBoxes[i]);
+    for (let j = 0; j < WORD_LENGTH; j++) {
+      if (getBaseConsonant(secretAksharas[j]) === gBase) {
+        const avail = inventory.get(secretAksharas[j]) ?? 0;
+        if (avail > 0) {
+          result[i] = "yellow";
+          inventory.set(secretAksharas[j], avail - 1);
+          break;
+        }
+      }
+    }
+  }
+
+  // Pass 5 — Gray: no match at any level.
+  for (let i = 0; i < WORD_LENGTH; i++) {
+    if (result[i] === null) result[i] = "gray";
+  }
+
+  return result as FeedbackColor[];
 }
 
 function computeHeatmap(secretAksharas: string[]): ("hot" | "cold")[] {
