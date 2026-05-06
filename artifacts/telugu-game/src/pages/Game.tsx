@@ -70,19 +70,25 @@ function finalizeBuilder(b: AksharaBuilder): string {
 
 // Parse a committed akshara string back into an AksharaBuilder for step-by-step deletion.
 // Strips the trailing vowel sign (if any) or anusvara, then splits the rest by halant.
-function reopenCommitted(s: string): AksharaBuilder {
-  const codePoints = [...s]; // spread respects Unicode scalar values
-  const last = codePoints[codePoints.length - 1];
-  let vowelSign: string | null = null;
-  let base = s;
-  if (DEPENDENT_VOWEL_SIGNS.has(last)) {
-    vowelSign = last;
-    base = codePoints.slice(0, -1).join("");
-  } else if (last === ANUSVARA) {
-    base = codePoints.slice(0, -1).join(""); // strip ం; no vowelSign
+function reopenCommitted(s: string): { builder: AksharaBuilder; hadAnusvara: boolean } {
+  let codePoints = [...s]; // spread respects Unicode scalar values
+  let hadAnusvara = false;
+
+  // Strip trailing anusvara first (it's the outermost layer)
+  if (codePoints[codePoints.length - 1] === ANUSVARA) {
+    hadAnusvara = true;
+    codePoints = codePoints.slice(0, -1);
   }
-  const consonants = base.split(HALANT).filter(Boolean);
-  return { consonants, vowelSign, pendingHalant: false };
+
+  // Now check for a trailing vowel sign under the anusvara (or as the top layer)
+  let vowelSign: string | null = null;
+  if (codePoints.length > 0 && DEPENDENT_VOWEL_SIGNS.has(codePoints[codePoints.length - 1])) {
+    vowelSign = codePoints[codePoints.length - 1];
+    codePoints = codePoints.slice(0, -1);
+  }
+
+  const consonants = codePoints.join("").split(HALANT).filter(Boolean);
+  return { builder: { consonants, vowelSign, pendingHalant: false }, hadAnusvara };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -267,11 +273,17 @@ export default function Game() {
       return;
     }
     // Complex akshara — re-open into builder and peel one layer
-    const reopened = reopenCommitted(content);
+    const { builder: reopened, hadAnusvara } = reopenCommitted(content);
     setBoxes((bx) => { const nx = [...bx]; nx[targetBox] = ""; return nx; });
-    if (reopened.vowelSign) {
+    if (hadAnusvara) {
+      // Anusvara was the outermost layer — show the remaining cluster (with vowelSign if any)
+      // without peeling further; next backspace will remove the vowel sign or conjunct.
+      setBuilder(reopened);
+    } else if (reopened.vowelSign) {
+      // Remove vowel sign, keep consonant cluster
       setBuilder({ ...reopened, vowelSign: null });
     } else {
+      // Peel the last conjunct consonant (or keep single consonant for one more step)
       setBuilder({
         consonants: reopened.consonants.length > 1
           ? reopened.consonants.slice(0, -1)
