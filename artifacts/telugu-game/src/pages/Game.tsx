@@ -95,10 +95,12 @@ function computeFeedback(
   return result as FeedbackColor[];
 }
 
-function computeHeatmap(secretAksharas: string[]): ("hot" | "cold")[] {
-  const secretBases = new Set(secretAksharas.map(getBaseConsonant));
+// Deep-search: spread the raw SECRET_WORD so every consonant inside a conjunct
+// cluster (e.g. the ట hidden in ష్ట్ర) is included in the hot-check.
+function computeHeatmap(): ("hot" | "cold")[] {
+  const secretChars = new Set([...SECRET_WORD]);
   return CONSONANT_ROWS.map((row) =>
-    row.some((c) => secretBases.has(c)) ? "hot" : "cold"
+    row.some((c) => secretChars.has(c)) ? "hot" : "cold"
   );
 }
 
@@ -406,7 +408,7 @@ export default function Game() {
       setTimeout(() => setRevealed(true), 30);
     }
     if (ENABLE_PHONETIC_HEATMAP) {
-      setRowHeatmap(computeHeatmap(SECRET_AKSHARAS));
+      setRowHeatmap(computeHeatmap());
     }
     toast(`✓ సమర్పించారు: ${finalBoxes.join("")}`);
   }
