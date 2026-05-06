@@ -267,23 +267,6 @@ export default function Game() {
     commitBuilder({ ...builder, vowelSign: char, pendingHalant: false }, activeBox);
   }
 
-  // ── క్ష special key ────────────────────────────────────────────────────────
-  function handleKsha() {
-    if (activeBox >= WORD_LENGTH) { toast("All boxes filled!"); return; }
-    if (builder.consonants.length > 0 && !builder.pendingHalant) {
-      // Finalize current first
-      commitBuilder(builder, activeBox);
-      toast("Committed — now tap క్ష again");
-      return;
-    }
-    // Start a క్ష cluster (or extend if halant pending)
-    setBuilder((prev) => ({
-      consonants: [...prev.consonants, "క", "ష"],
-      vowelSign: null,
-      pendingHalant: false,
-    }));
-  }
-
   // ── Backspace ──────────────────────────────────────────────────────────────
   function handleBackspace() {
     if (builder.pendingHalant) { setBuilder((p) => ({ ...p, pendingHalant: false })); return; }
@@ -690,7 +673,7 @@ export default function Game() {
           flexShrink: 0,
           padding: "8px 10px 12px",
           display: "grid",
-          gridTemplateColumns: "1fr auto 1fr",
+          gridTemplateColumns: "1fr 1fr",
           gap: 6,
         }}
       >
@@ -718,33 +701,6 @@ export default function Game() {
         >
           <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: "0.03em" }}>ENTER</span>
           <span style={{ fontSize: 9, fontWeight: 600, opacity: 0.75 }}>సమర్పించు</span>
-        </button>
-
-        {/* క్ష */}
-        <button
-          onClick={handleKsha}
-          style={{
-            width: 52,
-            height: 52,
-            borderRadius: 14,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "1.35rem",
-            fontWeight: 700,
-            cursor: "pointer",
-            background:
-              "linear-gradient(160deg,rgba(255,255,255,0.12) 0%,rgba(255,255,255,0.06) 100%)",
-            border: "1.5px solid rgba(255,255,255,0.2)",
-            color: "#e2e8f0",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-            WebkitTapHighlightColor: "transparent",
-          }}
-          onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.92)"; }}
-          onPointerUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
-          onPointerLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
-        >
-          క్ష
         </button>
 
         {/* Backspace */}
