@@ -203,6 +203,7 @@ export default function Game() {
   // Set to true when user explicitly clicks a box to edit it.
   // Lets handleConsonant overwrite in-place rather than advancing (ం behaviour).
   const explicitNavRef = useRef(false);
+  const shelfRef = useRef<HTMLDivElement>(null);
   const [feedback, setFeedback] = useState<(FeedbackColor | null)[]>(Array(WORD_LENGTH).fill(null));
   const [revealed, setRevealed] = useState(false);
   const [rowHeatmap, setRowHeatmap] = useState<("hot" | "cold" | null)[]>(Array(CONSONANT_ROWS.length).fill(null));
@@ -223,6 +224,8 @@ export default function Game() {
   function commitBuilder(b: AksharaBuilder, box: number) {
     const akshara = finalizeBuilder(b);
     if (!akshara) return;
+    // Scroll shelf back to the start so the next akshara begins fresh.
+    shelfRef.current?.scrollTo({ left: 0, behavior: "smooth" });
     setBoxes((prev) => {
       const next = [...prev];
       next[box] = akshara;
@@ -243,8 +246,16 @@ export default function Game() {
   }
 
   // ── Consonant ──────────────────────────────────────────────────────────────
+  // Number of independent vowels in MODIFIER_SHELF — scroll target for dependent signs.
+  // Each button is 44px wide + 6px gap = 50px per slot, plus 16px left padding.
+  const MATRA_SCROLL_LEFT = 16 + 12 * 50; // → "ా" at slot index 12
+
   function handleConsonant(char: string) {
     if (ENABLE_PHONETIC_HEATMAP) setRowHeatmap(Array(CONSONANT_ROWS.length).fill(null));
+    // First keystroke of a new akshara → scroll shelf to show dependent vowel signs.
+    if (builder.consonants.length === 0) {
+      shelfRef.current?.scrollTo({ left: MATRA_SCROLL_LEFT, behavior: "smooth" });
+    }
     const wasExplicitNav = explicitNavRef.current;
     explicitNavRef.current = false;
 
@@ -609,6 +620,7 @@ export default function Game() {
           />
 
           <div
+            ref={shelfRef}
             style={{
               display: "flex",
               gap: 6,
