@@ -124,10 +124,10 @@ const DEPENDENT_VOWEL_SIGNS = new Set([
 ]);
 
 const MODIFIER_SHELF = [
+  // Anusvara first — most missed modifier, must be visible without scrolling
+  ANUSVARA,
   // Independent vowels
   "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
-  // The Bridge
-  ANUSVARA,
   // Dependent vowel signs (ృ between ూ and ె)
   "ా", "ి", "ీ", "ు", "ూ", RRUKAR, "ె", "ే", "ై", "ొ", "ో", "ౌ",
   // The Glue
