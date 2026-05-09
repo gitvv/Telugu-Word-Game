@@ -224,8 +224,6 @@ export default function Game() {
   function commitBuilder(b: AksharaBuilder, box: number) {
     const akshara = finalizeBuilder(b);
     if (!akshara) return;
-    // Scroll shelf back to the start so the next akshara begins fresh.
-    shelfRef.current?.scrollTo({ left: 0, behavior: "smooth" });
     setBoxes((prev) => {
       const next = [...prev];
       next[box] = akshara;
@@ -254,7 +252,9 @@ export default function Game() {
     if (ENABLE_PHONETIC_HEATMAP) setRowHeatmap(Array(CONSONANT_ROWS.length).fill(null));
     // First keystroke of a new akshara → scroll shelf to show dependent vowel signs.
     if (builder.consonants.length === 0) {
-      shelfRef.current?.scrollTo({ left: MATRA_SCROLL_LEFT, behavior: "smooth" });
+      setTimeout(() => {
+        shelfRef.current?.scrollTo({ left: MATRA_SCROLL_LEFT, behavior: "smooth" });
+      }, 60);
     }
     const wasExplicitNav = explicitNavRef.current;
     explicitNavRef.current = false;
@@ -627,6 +627,7 @@ export default function Game() {
               overflowX: "auto",
               padding: "2px 16px 4px",
               scrollbarWidth: "none",
+              scrollBehavior: "smooth",
             }}
           >
             {MODIFIER_SHELF.map((char, idx) => {
