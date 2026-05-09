@@ -824,7 +824,6 @@ export default function Game() {
           onPointerLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
         >
           <span style={{ fontSize: "1.3rem", fontWeight: 700, lineHeight: 1 }}>్</span>
-          <span style={{ fontSize: 9, fontWeight: 600, opacity: 0.75 }}>హలంత్</span>
         </button>
 
         {/* Backspace */}
