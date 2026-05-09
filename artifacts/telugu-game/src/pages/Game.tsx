@@ -124,14 +124,11 @@ const DEPENDENT_VOWEL_SIGNS = new Set([
 ]);
 
 const MODIFIER_SHELF = [
-  // Anusvara first — most missed modifier, must be visible without scrolling
-  ANUSVARA,
   // Independent vowels
   "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
   // Dependent vowel signs (ృ between ూ and ె)
   "ా", "ి", "ీ", "ు", "ూ", RRUKAR, "ె", "ే", "ై", "ొ", "ో", "ౌ",
-  // The Glue
-  HALANT,
+  // ం and ్ moved to the consonant grid and action bar respectively
 ];
 
 // 7 rows × 5 columns
@@ -142,7 +139,7 @@ const CONSONANT_ROWS = [
   ["త", "థ", "ద", "ధ", "న"],
   ["ప", "ఫ", "బ", "భ", "మ"],
   ["య", "ర", "ల", "వ", "శ"],
-  ["ష", "స", "హ", "ళ", "ఱ"],
+  ["ష", "స", "హ", "ళ", ANUSVARA],
 ];
 
 const WORD_LENGTH = 4;
@@ -724,7 +721,7 @@ export default function Game() {
                 {row.map((char) => (
                   <button
                     key={char}
-                    onClick={() => handleConsonant(char)}
+                    onClick={() => NON_ADVANCING_MODIFIERS.has(char) ? handleModifier(char) : handleConsonant(char)}
                     style={{
                       flex: 1,
                       borderRadius: 14,
@@ -774,7 +771,7 @@ export default function Game() {
           flexShrink: 0,
           padding: "8px 10px 12px",
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "1fr auto 1fr",
           gap: 6,
         }}
       >
@@ -802,6 +799,32 @@ export default function Game() {
         >
           <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: "0.03em" }}>ENTER</span>
           <span style={{ fontSize: 9, fontWeight: 600, opacity: 0.75 }}>సమర్పించు</span>
+        </button>
+
+        {/* Halant ్ */}
+        <button
+          onClick={() => handleModifier(HALANT)}
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: 14,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 1,
+            cursor: "pointer",
+            background: "rgba(217,119,6,0.15)",
+            border: "1.5px solid rgba(217,119,6,0.4)",
+            color: "#fbbf24",
+            WebkitTapHighlightColor: "transparent",
+          }}
+          onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.92)"; }}
+          onPointerUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+          onPointerLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+        >
+          <span style={{ fontSize: "1.3rem", fontWeight: 700, lineHeight: 1 }}>్</span>
+          <span style={{ fontSize: 9, fontWeight: 600, opacity: 0.75 }}>హలంత్</span>
         </button>
 
         {/* Backspace */}
