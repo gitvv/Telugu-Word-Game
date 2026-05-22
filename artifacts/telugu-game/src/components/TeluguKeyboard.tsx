@@ -1,7 +1,6 @@
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import {
   HALANT,
-  ANUSVARA,
   MODIFIER_SHELF,
   CONSONANT_ROWS,
   NON_ADVANCING_MODIFIERS,
@@ -32,17 +31,20 @@ export default function TeluguKeyboard({
 }: TeluguKeyboardProps) {
   const shelfRef = useRef<HTMLDivElement>(null);
 
+  // Track which consonant key and which action bar button are pressed,
+  // so press feedback is state-driven rather than direct DOM mutation.
+  const [pressedKey, setPressedKey] = useState<string | null>(null);
+  const [pressedBtn, setPressedBtn] = useState<string | null>(null);
+
   const isPendingHalant = builder.pendingHalant;
 
-  function handleConsonantClick(char: string) {
-    // First keystroke of a new akshara → scroll shelf to show dependent vowel signs.
-    if (builder.consonants.length === 0) {
-      setTimeout(() => {
-        shelfRef.current?.scrollTo({ left: MATRA_SCROLL_LEFT, behavior: "smooth" });
-      }, 60);
+  // Scroll the shelf to show dependent vowel signs the moment the first
+  // consonant of a new akshara is tapped (consonants.length 0 → 1).
+  useEffect(() => {
+    if (builder.consonants.length === 1) {
+      shelfRef.current?.scrollTo({ left: MATRA_SCROLL_LEFT, behavior: "smooth" });
     }
-    onConsonant(char);
-  }
+  }, [builder.consonants.length]);
 
   return (
     <>
@@ -203,51 +205,44 @@ export default function TeluguKeyboard({
                   } : {}),
                 }}
               >
-                {row.map((char) => (
-                  <button
-                    key={char}
-                    onClick={() =>
-                      NON_ADVANCING_MODIFIERS.has(char)
-                        ? onModifier(char)
-                        : handleConsonantClick(char)
-                    }
-                    style={{
-                      flex: 1,
-                      borderRadius: 14,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "1.55rem",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      background:
-                        "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)",
-                      border: "1.5px solid rgba(255,255,255,0.13)",
-                      color: "#e2e8f0",
-                      boxShadow:
-                        "0 2px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.07)",
-                      transition: "background 0.1s, transform 0.1s",
-                      WebkitTapHighlightColor: "transparent",
-                    }}
-                    onPointerDown={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background =
-                        "linear-gradient(160deg,rgba(139,92,246,0.45) 0%,rgba(99,102,241,0.35) 100%)";
-                      (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.93)";
-                    }}
-                    onPointerUp={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background =
-                        "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)";
-                      (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
-                    }}
-                    onPointerLeave={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background =
-                        "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)";
-                      (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
-                    }}
-                  >
-                    {char}
-                  </button>
-                ))}
+                {row.map((char) => {
+                  const isPressed = pressedKey === char;
+                  return (
+                    <button
+                      key={char}
+                      onClick={() =>
+                        NON_ADVANCING_MODIFIERS.has(char)
+                          ? onModifier(char)
+                          : onConsonant(char)
+                      }
+                      onPointerDown={() => setPressedKey(char)}
+                      onPointerUp={() => setPressedKey(null)}
+                      onPointerLeave={() => setPressedKey(null)}
+                      style={{
+                        flex: 1,
+                        borderRadius: 14,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "1.55rem",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        background: isPressed
+                          ? "linear-gradient(160deg,rgba(139,92,246,0.45) 0%,rgba(99,102,241,0.35) 100%)"
+                          : "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)",
+                        border: "1.5px solid rgba(255,255,255,0.13)",
+                        color: "#e2e8f0",
+                        boxShadow:
+                          "0 2px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.07)",
+                        transform: isPressed ? "scale(0.93)" : "scale(1)",
+                        transition: "background 0.1s, transform 0.1s",
+                        WebkitTapHighlightColor: "transparent",
+                      }}
+                    >
+                      {char}
+                    </button>
+                  );
+                })}
               </div>
             );
           })}
@@ -267,6 +262,9 @@ export default function TeluguKeyboard({
         {/* Enter */}
         <button
           onClick={onSubmit}
+          onPointerDown={() => setPressedBtn("enter")}
+          onPointerUp={() => setPressedBtn(null)}
+          onPointerLeave={() => setPressedBtn(null)}
           style={{
             height: 52,
             borderRadius: 14,
@@ -280,11 +278,10 @@ export default function TeluguKeyboard({
             border: "none",
             color: "#1c1917",
             boxShadow: "0 4px 14px rgba(245,158,11,0.35)",
+            transform: pressedBtn === "enter" ? "scale(0.95)" : "scale(1)",
+            transition: "transform 0.1s",
             WebkitTapHighlightColor: "transparent",
           }}
-          onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.95)"; }}
-          onPointerUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
-          onPointerLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
         >
           <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: "0.03em" }}>ENTER</span>
           <span style={{ fontSize: 9, fontWeight: 600, opacity: 0.75 }}>సమర్పించు</span>
@@ -293,6 +290,9 @@ export default function TeluguKeyboard({
         {/* Halant ్ */}
         <button
           onClick={() => onModifier(HALANT)}
+          onPointerDown={() => setPressedBtn("halant")}
+          onPointerUp={() => setPressedBtn(null)}
+          onPointerLeave={() => setPressedBtn(null)}
           style={{
             width: 52,
             height: 52,
@@ -306,11 +306,10 @@ export default function TeluguKeyboard({
             background: "rgba(217,119,6,0.15)",
             border: "1.5px solid rgba(217,119,6,0.4)",
             color: "#fbbf24",
+            transform: pressedBtn === "halant" ? "scale(0.92)" : "scale(1)",
+            transition: "transform 0.1s",
             WebkitTapHighlightColor: "transparent",
           }}
-          onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.92)"; }}
-          onPointerUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
-          onPointerLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
         >
           <span style={{ fontSize: "1.3rem", fontWeight: 700, lineHeight: 1 }}>్</span>
         </button>
@@ -318,6 +317,9 @@ export default function TeluguKeyboard({
         {/* Backspace */}
         <button
           onClick={onBackspace}
+          onPointerDown={() => setPressedBtn("backspace")}
+          onPointerUp={() => setPressedBtn(null)}
+          onPointerLeave={() => setPressedBtn(null)}
           style={{
             height: 52,
             borderRadius: 14,
@@ -330,11 +332,10 @@ export default function TeluguKeyboard({
             background: "rgba(239,68,68,0.14)",
             border: "1.5px solid rgba(239,68,68,0.3)",
             color: "#fca5a5",
+            transform: pressedBtn === "backspace" ? "scale(0.95)" : "scale(1)",
+            transition: "transform 0.1s",
             WebkitTapHighlightColor: "transparent",
           }}
-          onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.95)"; }}
-          onPointerUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
-          onPointerLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
         >
           <span style={{ fontSize: 18, lineHeight: 1 }}>⌫</span>
           <span style={{ fontSize: 9, fontWeight: 600, opacity: 0.75 }}>చెరిపివేయి</span>

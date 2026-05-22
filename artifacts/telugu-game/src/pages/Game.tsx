@@ -19,7 +19,6 @@ import TeluguKeyboard from "../components/TeluguKeyboard";
 // ─── Switchboard ──────────────────────────────────────────────────────────────
 const ENABLE_STANDARD_FEEDBACK = true;
 const ENABLE_PHONETIC_HEATMAP  = true;
-const ENABLE_INK_ECONOMY       = false;
 
 // ─── Secret word & feedback helpers ───────────────────────────────────────────
 const SECRET_WORD = "రాష్ట్రపతి";
@@ -40,9 +39,6 @@ export default function Game() {
   const [feedback, setFeedback] = useState<(FeedbackColor | null)[]>(Array(WORD_LENGTH).fill(null));
   const [revealed, setRevealed] = useState(false);
   const [rowHeatmap, setRowHeatmap] = useState<("hot" | "cold" | null)[]>(Array(CONSONANT_ROWS.length).fill(null));
-
-  // Silence unused-variable warning for ENABLE_INK_ECONOMY until it is wired up.
-  void ENABLE_INK_ECONOMY;
 
   // Clear feedback colours and heatmap whenever the user edits any box
   useEffect(() => {
