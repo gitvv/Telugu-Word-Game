@@ -1,10 +1,14 @@
 import { useRef, useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   HALANT,
   MODIFIER_SHELF,
   CONSONANT_ROWS,
   NON_ADVANCING_MODIFIERS,
   INDEPENDENT_VOWELS,
+  WORD_INITIAL_CLUSTERS,
+  MEDIAL_UNIVERSAL_SET,
+  NO_ROW2_CONSONANTS,
   type AksharaBuilder,
 } from "../lib/telugu";
 
@@ -19,7 +23,43 @@ interface TeluguKeyboardProps {
   onSubmit: () => void;
   builder: AksharaBuilder;
   rowHeatmap: ("hot" | "cold" | null)[];
+  activeBox: number;
 }
+
+// ─── Row 2 computation ────────────────────────────────────────────────────────
+// Returns the ordered list of cluster strings to show, or null if Row 2 should
+// not appear. Row 2 is only meaningful when exactly one consonant is in the
+// builder (the base); once a cluster is already formed there is nothing to offer.
+function computeRow2(
+  builder: AksharaBuilder,
+  activeBox: number
+): string[] | null {
+  if (builder.consonants.length !== 1) return null;
+  const base = builder.consonants[0];
+
+  if (NO_ROW2_CONSONANTS.has(base)) return null;
+  // ళ: no word-initial clusters — suppress entirely for box 1.
+  if (base === "ళ" && activeBox === 0) return null;
+
+  if (activeBox === 0) {
+    // Section 1 — attested word-initial clusters.
+    const section1 = [...(WORD_INITIAL_CLUSTERS.get(base) ?? [])];
+    const section1Set = new Set(section1);
+    // Section 2 — universal medial set deduplicated against Section 1.
+    const section2 = MEDIAL_UNIVERSAL_SET
+      .map((sec) => base + HALANT + sec)
+      .filter((c) => !section1Set.has(c));
+    const result = [...section1, ...section2];
+    return result.length > 0 ? result : null;
+  } else {
+    // Medial — full universal set + geminate.
+    const medial = MEDIAL_UNIVERSAL_SET.map((sec) => base + HALANT + sec);
+    const geminate = base + HALANT + base; // e.g. ప్ప, ళ్ళ
+    return [...medial, geminate];
+  }
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function TeluguKeyboard({
   onConsonant,
@@ -28,13 +68,14 @@ export default function TeluguKeyboard({
   onSubmit,
   builder,
   rowHeatmap,
+  activeBox,
 }: TeluguKeyboardProps) {
   const shelfRef = useRef<HTMLDivElement>(null);
 
-  // Track which consonant key and which action bar button are pressed,
-  // so press feedback is state-driven rather than direct DOM mutation.
+  // Press-feedback state — avoids direct DOM style mutations.
   const [pressedKey, setPressedKey] = useState<string | null>(null);
   const [pressedBtn, setPressedBtn] = useState<string | null>(null);
+  const [pressedCluster, setPressedCluster] = useState<string | null>(null);
 
   const isPendingHalant = builder.pendingHalant;
 
@@ -46,10 +87,24 @@ export default function TeluguKeyboard({
     }
   }, [builder.consonants.length]);
 
+  // Cluster tap — uses flushSync so each call sees the state committed by
+  // the previous one, without needing a dedicated onCluster prop.
+  function handleClusterTap(cluster: string) {
+    const parts = cluster.split(HALANT); // e.g. "ప్ర" → ["ప","ర"]
+    if (parts.length < 2) return;
+    if (parts[0] !== builder.consonants[0]) return; // sanity guard
+    for (let i = 1; i < parts.length; i++) {
+      flushSync(() => { onModifier(HALANT); });
+      flushSync(() => { onConsonant(parts[i]); });
+    }
+  }
+
+  const row2 = computeRow2(builder, activeBox);
+
   return (
     <>
-      {/* ── Modifier Shelf ──────────────────────────────────────────────────── */}
-      <div style={{ flexShrink: 0, paddingBottom: 6 }}>
+      {/* ── Modifier Shelf (Row 1) ───────────────────────────────────────────── */}
+      <div style={{ flexShrink: 0, paddingBottom: 4 }}>
         {/* Label */}
         <p
           style={{
@@ -69,88 +124,59 @@ export default function TeluguKeyboard({
           {/* Left fade */}
           <div
             style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: 28,
+              position: "absolute", left: 0, top: 0, bottom: 0, width: 28,
               background: "linear-gradient(to right,#16213e,transparent)",
-              zIndex: 2,
-              pointerEvents: "none",
+              zIndex: 2, pointerEvents: "none",
             }}
           />
           {/* Right fade */}
           <div
             style={{
-              position: "absolute",
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: 28,
+              position: "absolute", right: 0, top: 0, bottom: 0, width: 28,
               background: "linear-gradient(to left,#0f3460,transparent)",
-              zIndex: 2,
-              pointerEvents: "none",
+              zIndex: 2, pointerEvents: "none",
             }}
           />
-
           <div
             ref={shelfRef}
             style={{
-              display: "flex",
-              gap: 6,
-              overflowX: "auto",
+              display: "flex", gap: 6, overflowX: "auto",
               padding: "2px 16px 4px",
-              scrollbarWidth: "none",
-              scrollBehavior: "smooth",
+              scrollbarWidth: "none", scrollBehavior: "smooth",
             }}
           >
             {MODIFIER_SHELF.map((char, idx) => {
               const isHalant = char === HALANT;
               const isVowel = INDEPENDENT_VOWELS.has(char);
-              const isActive =
-                isHalant ? isPendingHalant : builder.vowelSign === char;
-
+              const isActive = isHalant ? isPendingHalant : builder.vowelSign === char;
               return (
                 <button
                   key={`${char}-${idx}`}
                   onClick={() => onModifier(char)}
                   style={{
-                    flexShrink: 0,
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "1.3rem",
-                    fontWeight: 700,
-                    cursor: "pointer",
+                    flexShrink: 0, width: 44, height: 44, borderRadius: 12,
+                    display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center",
+                    fontSize: "1.3rem", fontWeight: 700, cursor: "pointer",
                     transition: "all 0.15s",
                     background: isActive
                       ? isHalant
                         ? "linear-gradient(135deg,#92400e,#d97706)"
                         : "linear-gradient(135deg,#1d4ed8,#2563eb)"
-                      : isHalant
-                      ? "rgba(217,119,6,0.15)"
-                      : isVowel
-                      ? "rgba(16,185,129,0.12)"
+                      : isHalant ? "rgba(217,119,6,0.15)"
+                      : isVowel ? "rgba(16,185,129,0.12)"
                       : "rgba(29,78,216,0.18)",
                     border: `1.5px solid ${
                       isActive
                         ? isHalant ? "#fbbf24" : "#60a5fa"
-                        : isHalant
-                        ? "rgba(217,119,6,0.4)"
-                        : isVowel
-                        ? "rgba(16,185,129,0.35)"
+                        : isHalant ? "rgba(217,119,6,0.4)"
+                        : isVowel ? "rgba(16,185,129,0.35)"
                         : "rgba(59,130,246,0.3)"
                     }`,
                     color: isActive
                       ? isHalant ? "#fef3c7" : "#bfdbfe"
-                      : isHalant
-                      ? "#fbbf24"
-                      : isVowel
-                      ? "#6ee7b7"
+                      : isHalant ? "#fbbf24"
+                      : isVowel ? "#6ee7b7"
                       : "#93c5fd",
                     boxShadow: isActive
                       ? isHalant
@@ -167,23 +193,92 @@ export default function TeluguKeyboard({
         </div>
       </div>
 
+      {/* ── Cluster Strip (Row 2) ────────────────────────────────────────────── */}
+      {row2 !== null && (
+        <div style={{ flexShrink: 0, paddingBottom: 4 }}>
+          {/* Label */}
+          <p
+            style={{
+              fontSize: 9,
+              textAlign: "center",
+              color: "rgba(196,181,253,0.45)",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              margin: "0 0 4px",
+            }}
+          >
+            కూర్పులు · Clusters
+          </p>
+
+          {/* Scroll container with fade masks */}
+          <div style={{ position: "relative" }}>
+            {/* Left fade */}
+            <div
+              style={{
+                position: "absolute", left: 0, top: 0, bottom: 0, width: 28,
+                background: "linear-gradient(to right,#16213e,transparent)",
+                zIndex: 2, pointerEvents: "none",
+              }}
+            />
+            {/* Right fade */}
+            <div
+              style={{
+                position: "absolute", right: 0, top: 0, bottom: 0, width: 28,
+                background: "linear-gradient(to left,#0f3460,transparent)",
+                zIndex: 2, pointerEvents: "none",
+              }}
+            />
+            <div
+              style={{
+                display: "flex", gap: 6, overflowX: "auto",
+                padding: "2px 16px 4px",
+                scrollbarWidth: "none", scrollBehavior: "smooth",
+              }}
+            >
+              {row2.map((cluster) => {
+                const isPressed = pressedCluster === cluster;
+                return (
+                  <button
+                    key={cluster}
+                    onClick={() => handleClusterTap(cluster)}
+                    onPointerDown={() => setPressedCluster(cluster)}
+                    onPointerUp={() => setPressedCluster(null)}
+                    onPointerLeave={() => setPressedCluster(null)}
+                    style={{
+                      flexShrink: 0,
+                      width: 44, height: 44, borderRadius: 12,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "1.3rem", fontWeight: 700, cursor: "pointer",
+                      transition: "all 0.12s",
+                      background: isPressed
+                        ? "linear-gradient(135deg,rgba(91,33,182,0.55),rgba(109,40,217,0.45))"
+                        : "rgba(109,40,217,0.15)",
+                      border: `1.5px solid ${isPressed ? "rgba(167,139,250,0.7)" : "rgba(139,92,246,0.35)"}`,
+                      color: isPressed ? "#ede9fe" : "#c4b5fd",
+                      boxShadow: isPressed ? "0 0 12px rgba(139,92,246,0.4)" : "none",
+                      transform: isPressed ? "scale(0.93)" : "scale(1)",
+                    }}
+                  >
+                    {cluster}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Consonant Grid ──────────────────────────────────────────────────── */}
       <div
         style={{
-          flex: 1,
-          padding: "0 10px",
-          minHeight: 0,
-          display: "flex",
-          flexDirection: "column",
+          flex: 1, padding: "0 10px", minHeight: 0,
+          display: "flex", flexDirection: "column",
         }}
       >
         <div
           style={{
-            flex: 1,
-            minHeight: 0,
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
+            flex: 1, minHeight: 0,
+            display: "flex", flexDirection: "column", gap: 6,
           }}
         >
           {CONSONANT_ROWS.map((row, ri) => {
@@ -192,16 +287,12 @@ export default function TeluguKeyboard({
               <div
                 key={ri}
                 style={{
-                  display: "flex",
-                  flex: 1,
-                  gap: 6,
-                  borderRadius: 10,
+                  display: "flex", flex: 1, gap: 6, borderRadius: 10,
                   transition: "opacity 0.35s ease, filter 0.35s ease, box-shadow 0.35s ease",
                   ...(heat === "hot" ? {
                     boxShadow: "0 0 14px rgba(251,146,60,0.55), 0 0 0 1px rgba(251,146,60,0.35)",
                   } : heat === "cold" ? {
-                    opacity: 0.28,
-                    filter: "grayscale(75%)",
+                    opacity: 0.28, filter: "grayscale(75%)",
                   } : {}),
                 }}
               >
@@ -219,21 +310,15 @@ export default function TeluguKeyboard({
                       onPointerUp={() => setPressedKey(null)}
                       onPointerLeave={() => setPressedKey(null)}
                       style={{
-                        flex: 1,
-                        borderRadius: 14,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "1.55rem",
-                        fontWeight: 700,
-                        cursor: "pointer",
+                        flex: 1, borderRadius: 14,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "1.55rem", fontWeight: 700, cursor: "pointer",
                         background: isPressed
                           ? "linear-gradient(160deg,rgba(139,92,246,0.45) 0%,rgba(99,102,241,0.35) 100%)"
                           : "linear-gradient(160deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.05) 100%)",
                         border: "1.5px solid rgba(255,255,255,0.13)",
                         color: "#e2e8f0",
-                        boxShadow:
-                          "0 2px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.07)",
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.07)",
                         transform: isPressed ? "scale(0.93)" : "scale(1)",
                         transition: "background 0.1s, transform 0.1s",
                         WebkitTapHighlightColor: "transparent",
@@ -252,11 +337,8 @@ export default function TeluguKeyboard({
       {/* ── Bottom Action Bar ───────────────────────────────────────────────── */}
       <div
         style={{
-          flexShrink: 0,
-          padding: "8px 10px 12px",
-          display: "grid",
-          gridTemplateColumns: "1fr auto 1fr",
-          gap: 6,
+          flexShrink: 0, padding: "8px 10px 12px",
+          display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 6,
         }}
       >
         {/* Enter */}
@@ -266,17 +348,11 @@ export default function TeluguKeyboard({
           onPointerUp={() => setPressedBtn(null)}
           onPointerLeave={() => setPressedBtn(null)}
           style={{
-            height: 52,
-            borderRadius: 14,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexDirection: "column",
-            gap: 1,
-            cursor: "pointer",
+            height: 52, borderRadius: 14,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexDirection: "column", gap: 1, cursor: "pointer",
             background: "linear-gradient(135deg,#d97706,#f59e0b)",
-            border: "none",
-            color: "#1c1917",
+            border: "none", color: "#1c1917",
             boxShadow: "0 4px 14px rgba(245,158,11,0.35)",
             transform: pressedBtn === "enter" ? "scale(0.95)" : "scale(1)",
             transition: "transform 0.1s",
@@ -294,15 +370,10 @@ export default function TeluguKeyboard({
           onPointerUp={() => setPressedBtn(null)}
           onPointerLeave={() => setPressedBtn(null)}
           style={{
-            width: 52,
-            height: 52,
-            borderRadius: 14,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 1,
-            cursor: "pointer",
+            width: 52, height: 52, borderRadius: 14,
+            display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+            gap: 1, cursor: "pointer",
             background: "rgba(217,119,6,0.15)",
             border: "1.5px solid rgba(217,119,6,0.4)",
             color: "#fbbf24",
@@ -321,14 +392,9 @@ export default function TeluguKeyboard({
           onPointerUp={() => setPressedBtn(null)}
           onPointerLeave={() => setPressedBtn(null)}
           style={{
-            height: 52,
-            borderRadius: 14,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexDirection: "column",
-            gap: 1,
-            cursor: "pointer",
+            height: 52, borderRadius: 14,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexDirection: "column", gap: 1, cursor: "pointer",
             background: "rgba(239,68,68,0.14)",
             border: "1.5px solid rgba(239,68,68,0.3)",
             color: "#fca5a5",

@@ -1,0 +1,89 @@
+The data foundation for Row 2 is now in telugu.ts 
+(WORD_INITIAL_CLUSTERS, MEDIAL_UNIVERSAL_SET, 
+NO_ROW2_CONSONANTS). Now we build the UI.
+
+Row 2 is a horizontally scrollable cluster suggestion 
+strip that appears immediately below the modifier shelf 
+(Row 1) when a consonant is being built. Its purpose: 
+surface pre-built cluster options so players can build 
+clusters with one tap, without needing to know what a 
+halant is. The halant key stays exactly where it is in 
+the action bar — Row 2 does not replace it, it 
+complements it.
+
+Make these changes:
+
+1. In Game.tsx:
+Pass activeBox as a new prop to TeluguKeyboard. 
+activeBox is already tracked in Game.tsx — it just 
+needs to be passed down. No other changes to Game.tsx.
+
+2. In TeluguKeyboard.tsx:
+Add activeBox: number as a new prop.
+
+Add Row 2 — a horizontally scrollable strip — 
+immediately below the modifier shelf. 
+
+Row 2 behaviour:
+- Appears when builder.consonants.length > 0 
+  (a consonant is active)
+- Absent when builder is empty or an independent 
+  vowel was tapped
+- Always reflects the CURRENT active consonant — 
+  updates immediately when a new consonant is tapped
+- Base consonant for lookup is always 
+  builder.consonants[0]
+
+Row 2 content rules:
+
+If builder.consonants[0] is in NO_ROW2_CONSONANTS:
+→ Do not render Row 2 at all
+
+If activeBox === 0 (word-initial, first box):
+→ Section 1: show WORD_INITIAL_CLUSTERS[base] 
+  if it exists
+→ Section 2: show MEDIAL_UNIVERSAL_SET as pre-built 
+  clusters with the base consonant, deduplicated 
+  against Section 1
+→ No geminate in box 1
+
+If activeBox > 0 (medial, boxes 2+):
+→ Show MEDIAL_UNIVERSAL_SET as pre-built clusters 
+  with the base consonant
+→ Also show the geminate: base consonant doubled 
+  (e.g. ప → ప్ప)
+→ If base is ళ, include ళ్ళ as geminate
+
+Special case — ళ:
+→ No Row 2 in box 1
+→ Row 2 appears in boxes 2+ (geminate ళ్ళ + 
+  universal set)
+
+When a player taps an item in Row 2:
+→ That cluster is committed to the builder as the 
+  consonant cluster
+→ Row 1 (modifier shelf) then shows matras as normal
+
+Visual design:
+Row 2 should feel like a natural companion to the 
+modifier shelf — related but visually distinct. 
+It is surfacing clusters, not vowels, and the player 
+should sense that difference without being told. 
+The modifier shelf is your reference. You have creative 
+latitude on colour, opacity, and key style — but these 
+constraints are fixed:
+- Same scroll behaviour as modifier shelf
+- Same touch target height as modifier shelf keys  
+- Left and right fade masks (same as modifier shelf)
+- Items render as complete pre-built clusters
+- No changes to props beyond activeBox
+
+Test before stopping:
+- Tap ప in box 1 → ప్ర, ప్ల appear first, then 
+  universal set deduplicated
+- Tap ప in box 2 → full universal set + ప్ప geminate
+- Tap ఙ → no Row 2 appears
+- Tap ళ in box 1 → no Row 2. In box 2 → Row 2 
+  with ళ్ళ and universal set
+- Tap స in box 1 → nine confirmed partners in 
+  Section 1, universal set deduplicated in Section 2

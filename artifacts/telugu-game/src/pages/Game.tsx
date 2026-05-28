@@ -403,6 +403,7 @@ export default function Game() {
         onSubmit={handleSubmit}
         builder={builder}
         rowHeatmap={rowHeatmap}
+        activeBox={activeBox}
       />
 
       <style>{`
