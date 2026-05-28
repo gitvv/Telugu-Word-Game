@@ -183,3 +183,42 @@ export function computeHeatmap(secretWord: string): ("hot" | "cold")[] {
     row.some((c) => secretChars.has(c)) ? "hot" : "cold"
   );
 }
+
+// ─── Cluster suggestion data ───────────────────────────────────────────────────
+
+// Word-initial clusters: maps a base consonant to pre-built cluster strings
+// that are attested at the start of Telugu words.
+export const WORD_INITIAL_CLUSTERS: ReadonlyMap<string, readonly string[]> = new Map([
+  ["క",  ["క్ర", "క్వ", "క్ల"]],
+  ["ఖ",  ["ఖ్య"]],
+  ["గ",  ["గ్ర"]],
+  ["ఘ",  ["ఘ్ర"]],
+  ["జ",  ["జ్వ", "జ్ఞ"]],
+  ["ట",  ["ట్ర"]],
+  ["డ",  ["డ్ర"]],
+  ["థ",  ["థ్య", "థ్వ"]],
+  ["త",  ["త్ర", "త్వ"]],
+  ["ద",  ["ద్వ", "ద్ర"]],
+  ["ధ",  ["ధ్వ", "ధ్య", "ధ్ర"]],
+  ["న",  ["న్య"]],
+  ["ప",  ["ప్ర", "ప్ల"]],
+  ["ఫ",  ["ఫ్ర", "ఫ్ల", "ఫ్య"]],
+  ["బ",  ["బ్ర", "బ్ల", "బ్య"]],
+  ["భ",  ["భ్ర"]],
+  ["మ",  ["మ్య"]],
+  ["వ",  ["వ్ర", "వ్య"]],
+  ["శ",  ["శ్ర", "శ్వ", "శ్ల", "శ్మ"]],
+  ["స",  ["స్వ", "స్న", "స్థ", "స్త", "స్ప", "స్ఫ", "స్మ", "స్క", "స్ట"]],
+  ["హ",  ["హ్ల"]],
+]);
+
+// Universal second elements for medial-position clusters, in display order.
+// Geminate (same consonant doubled) is computed dynamically — not stored here.
+export const MEDIAL_UNIVERSAL_SET: readonly string[] = [
+  "ర", "య", "వ", "ల", "మ", "న", "త", "క", "ప",
+];
+
+// Consonants that never trigger a Row 2 cluster suggestion strip.
+export const NO_ROW2_CONSONANTS: ReadonlySet<string> = new Set([
+  "ఙ", "ఞ", "ఝ", "ఠ", "ఢ",
+]);
