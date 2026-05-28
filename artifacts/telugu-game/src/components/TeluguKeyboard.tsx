@@ -1,5 +1,4 @@
 import { useRef, useEffect, useState } from "react";
-import { flushSync } from "react-dom";
 import {
   HALANT,
   MODIFIER_SHELF,
@@ -19,6 +18,7 @@ const MATRA_SCROLL_LEFT = 16 + 12 * 50; // → "ా" at slot index 12
 interface TeluguKeyboardProps {
   onConsonant: (char: string) => void;
   onModifier: (char: string) => void;
+  onCluster: (cluster: string) => void;
   onBackspace: () => void;
   onSubmit: () => void;
   builder: AksharaBuilder;
@@ -45,8 +45,10 @@ function computeRow2(
     // Section 1 — attested word-initial clusters.
     const section1 = [...(WORD_INITIAL_CLUSTERS.get(base) ?? [])];
     const section1Set = new Set(section1);
-    // Section 2 — universal medial set deduplicated against Section 1.
+    // Section 2 — universal medial set, excluding geminates (never word-initial)
+    // and deduplicated against Section 1.
     const section2 = MEDIAL_UNIVERSAL_SET
+      .filter((sec) => sec !== base) // no geminate in box 1
       .map((sec) => base + HALANT + sec)
       .filter((c) => !section1Set.has(c));
     const result = [...section1, ...section2];
@@ -64,6 +66,7 @@ function computeRow2(
 export default function TeluguKeyboard({
   onConsonant,
   onModifier,
+  onCluster,
   onBackspace,
   onSubmit,
   builder,
@@ -87,16 +90,10 @@ export default function TeluguKeyboard({
     }
   }, [builder.consonants.length]);
 
-  // Cluster tap — uses flushSync so each call sees the state committed by
-  // the previous one, without needing a dedicated onCluster prop.
+  // Cluster tap — delegates directly to onCluster which sets the builder state
+  // in one shot. No intermediate commits, no closure-over-stale-state issues.
   function handleClusterTap(cluster: string) {
-    const parts = cluster.split(HALANT); // e.g. "ప్ర" → ["ప","ర"]
-    if (parts.length < 2) return;
-    if (parts[0] !== builder.consonants[0]) return; // sanity guard
-    for (let i = 1; i < parts.length; i++) {
-      flushSync(() => { onModifier(HALANT); });
-      flushSync(() => { onConsonant(parts[i]); });
-    }
+    onCluster(cluster);
   }
 
   const row2 = computeRow2(builder, activeBox);

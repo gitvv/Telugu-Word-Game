@@ -75,6 +75,16 @@ export default function Game() {
     setActiveBox(Math.min(box + 1, WORD_LENGTH));
   }
 
+  // ── Cluster (Row 2 tap) ────────────────────────────────────────────────────
+  // Sets the builder directly to the full cluster state without any intermediate
+  // commits. Parts come from splitting the pre-built cluster string on HALANT.
+  function handleCluster(cluster: string) {
+    const parts = cluster.split(HALANT).filter(Boolean);
+    if (parts.length < 2) return;
+    if (ENABLE_PHONETIC_HEATMAP) setRowHeatmap(Array(CONSONANT_ROWS.length).fill(null));
+    setBuilder({ consonants: parts, vowelSign: null, pendingHalant: false });
+  }
+
   // ── Consonant ──────────────────────────────────────────────────────────────
   function handleConsonant(char: string) {
     if (ENABLE_PHONETIC_HEATMAP) setRowHeatmap(Array(CONSONANT_ROWS.length).fill(null));
@@ -399,6 +409,7 @@ export default function Game() {
       <TeluguKeyboard
         onConsonant={handleConsonant}
         onModifier={handleModifier}
+        onCluster={handleCluster}
         onBackspace={handleBackspace}
         onSubmit={handleSubmit}
         builder={builder}
