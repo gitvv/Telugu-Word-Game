@@ -22,9 +22,11 @@ export const DEPENDENT_VOWEL_SIGNS = new Set([
 export const MODIFIER_SHELF = [
   // Independent vowels
   "అ", "ఆ", "ఇ", "ఈ", "ఉ", "ఊ", "ఎ", "ఏ", "ఐ", "ఒ", "ఓ", "ఔ",
+  // Anusvara — non-advancing, attaches to current box without moving cursor
+  ANUSVARA,
   // Dependent vowel signs (ృ between ూ and ె)
   "ా", "ి", "ీ", "ు", "ూ", RRUKAR, "ె", "ే", "ై", "ొ", "ో", "ౌ",
-  // ం and ్ moved to the consonant grid and action bar respectively
+  // ్ is on the action bar
 ];
 
 // 7 rows × 5 columns
@@ -35,7 +37,7 @@ export const CONSONANT_ROWS = [
   ["త", "థ", "ద", "ధ", "న"],
   ["ప", "ఫ", "బ", "భ", "మ"],
   ["య", "ర", "ల", "వ", "శ"],
-  ["ష", "స", "హ", "ళ", ANUSVARA],
+  ["ష", "స", "హ", "ళ", "క్ష"],
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────

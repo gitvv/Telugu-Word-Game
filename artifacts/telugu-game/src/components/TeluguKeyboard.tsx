@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import {
   HALANT,
+  ANUSVARA,
   MODIFIER_SHELF,
   CONSONANT_ROWS,
   NON_ADVANCING_MODIFIERS,
@@ -11,9 +12,15 @@ import {
   type AksharaBuilder,
 } from "../lib/telugu";
 
-// Number of independent vowels in MODIFIER_SHELF — scroll target for dependent signs.
-// Each button is 44px wide + 6px gap = 50px per slot, plus 16px left padding.
-const MATRA_SCROLL_LEFT = 16 + 12 * 50; // → "ా" at slot index 12
+// Dynamically derived from shelf data: index of the first matra =
+// count of pre-matra items (independent vowels + ANUSVARA).
+// Each button is 44px wide + 6px gap = 50px per slot, 16px left padding.
+// Scrolling to slot (PRE_MATRA_COUNT - 1) puts ANUSVARA as the leftmost
+// visible item, with matras immediately to its right.
+const PRE_MATRA_COUNT = MODIFIER_SHELF.findIndex(
+  (c) => !INDEPENDENT_VOWELS.has(c) && c !== ANUSVARA
+);
+const MATRA_SCROLL_LEFT = 16 + (PRE_MATRA_COUNT - 1) * 50;
 
 interface TeluguKeyboardProps {
   onConsonant: (char: string) => void;
@@ -302,11 +309,15 @@ export default function TeluguKeyboard({
                   return (
                     <button
                       key={char}
-                      onClick={() =>
-                        NON_ADVANCING_MODIFIERS.has(char)
-                          ? onModifier(char)
-                          : onConsonant(char)
-                      }
+                      onClick={() => {
+                        if (char.includes(HALANT)) {
+                          onCluster(char);
+                        } else if (NON_ADVANCING_MODIFIERS.has(char)) {
+                          onModifier(char);
+                        } else {
+                          onConsonant(char);
+                        }
+                      }}
                       onPointerDown={() => setPressedKey(char)}
                       onPointerUp={() => setPressedKey(null)}
                       onPointerLeave={() => setPressedKey(null)}

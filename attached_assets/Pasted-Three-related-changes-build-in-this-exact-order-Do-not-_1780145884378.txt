@@ -1,0 +1,72 @@
+Three related changes — build in this exact order. 
+Do not move to the next step until the previous one 
+compiles cleanly.
+
+---
+
+Step 1 — Data changes in telugu.ts only.
+
+1a. In the modifier shelf data, add anusvara (ం) 
+immediately after ఔ — before the matras section. 
+It becomes the 13th item on the left side of the 
+shelf (after the 12 independent vowels).
+
+1b. In the consonant grid data, remove anusvara (ం) 
+from the last row. The last row currently reads: 
+ష స హ ళ ం. Replace ం with క్ష. 
+Last row becomes: ష స హ ళ క్ష.
+
+Verify telugu.ts compiles cleanly before proceeding.
+
+---
+
+Step 2 — Scroll fix in TeluguKeyboard.tsx.
+
+The modifier shelf auto-scrolls when a consonant is 
+tapped. The scroll target is currently hardcoded as 
+16 + 12 * 50, which assumes exactly 12 independent 
+vowels. This is now wrong — there are 13 items on 
+the left side after adding anusvara.
+
+Replace the hardcoded calculation with a dynamic one: 
+compute the scroll target from the actual count of 
+items before the matras section in the shelf data. 
+The formula should read from the data, not assume 
+a fixed number.
+
+The scroll behaviour after this fix: when a consonant 
+is tapped, Row 1 auto-scrolls so that anusvara (ం) 
+appears as the leftmost visible item, with matras 
+immediately to the right.
+
+---
+
+Step 3 — క్ష tap handling.
+
+క్ష is a multi-character Unicode string (క + ్ + ష), 
+not a single character. When the player taps the 
+క్ష key, route it through the existing onCluster 
+callback — the same path Row 2 cluster chips use. 
+This commits క్ష as a complete pre-built akshara 
+in one state update, without the builder trying to 
+parse it as a single Unicode consonant.
+
+One tap on క్ష = one complete akshara committed. 
+No halant, no Row 2 involvement.
+
+---
+
+Test before marking done:
+
+1. Row 1 shows: అ ఆ ఇ ఈ ఉ ఊ ఎ ఏ ఐ ఒ ఓ ఔ ం → 
+   then matras. 13 items before matras.
+2. Tap any consonant → shelf scrolls → ం is 
+   leftmost visible, matras visible to the right.
+3. Tap ం after a consonant → anusvara attaches, 
+   cursor does not advance to next box.
+4. Consonant grid last row: ష స హ ళ క్ష. 
+   No anusvara in the consonant grid.
+5. Tap క్ష → one complete akshara committed in 
+   the active box. Builder receives it as a single 
+   unit. Box advances after matra selection.
+6. No empty slot, no duplicate anusvara anywhere.
