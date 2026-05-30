@@ -54,9 +54,13 @@ function computeRow2(
     const result = [...section1, ...section2];
     return result.length > 0 ? result : null;
   } else {
-    // Medial — full universal set + geminate.
-    const medial = MEDIAL_UNIVERSAL_SET.map((sec) => base + HALANT + sec);
-    const geminate = base + HALANT + base; // e.g. ప్ప, ళ్ళ
+    // Medial — universal set with self-reference removed, then geminate appended.
+    // Without the filter, bases that are members of MEDIAL_UNIVERSAL_SET (e.g. త, క)
+    // would generate the geminate cluster twice: once from the map and once below.
+    const medial = MEDIAL_UNIVERSAL_SET
+      .filter((sec) => sec !== base)
+      .map((sec) => base + HALANT + sec);
+    const geminate = base + HALANT + base; // e.g. తత, క్క, బ్బ
     return [...medial, geminate];
   }
 }
