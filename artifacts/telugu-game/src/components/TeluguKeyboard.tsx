@@ -96,8 +96,8 @@ export default function TeluguKeyboard({
   // Scroll the shelf to show dependent vowel signs the moment the first
   // consonant of a new akshara is tapped (consonants.length 0 → 1).
   useEffect(() => {
-    if (builder.consonants.length === 1) {
-      shelfRef.current?.scrollTo({ left: MATRA_SCROLL_LEFT, behavior: "smooth" });
+    if (builder.consonants.length === 1 && shelfRef.current) {
+      shelfRef.current.scrollLeft = MATRA_SCROLL_LEFT;
     }
   }, [builder.consonants.length]);
 
