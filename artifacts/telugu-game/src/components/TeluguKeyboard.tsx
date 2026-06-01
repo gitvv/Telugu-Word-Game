@@ -150,7 +150,7 @@ export default function TeluguKeyboard({
             style={{
               display: "flex", gap: 6, overflowX: "auto",
               padding: "2px 16px 4px",
-              scrollbarWidth: "none", scrollBehavior: "smooth",
+              scrollbarWidth: "none",
             }}
           >
             {MODIFIER_SHELF.map((char, idx) => {
