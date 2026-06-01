@@ -97,7 +97,11 @@ export default function TeluguKeyboard({
   // consonant of a new akshara is tapped (consonants.length 0 → 1).
   useEffect(() => {
     if (builder.consonants.length === 1 && shelfRef.current) {
-      shelfRef.current.scrollLeft = MATRA_SCROLL_LEFT;
+      if (shelfRef.current.scrollLeft !== MATRA_SCROLL_LEFT) {
+        console.log("BEFORE:", shelfRef.current.scrollLeft);
+        shelfRef.current.scrollLeft = MATRA_SCROLL_LEFT;
+        console.log("AFTER:", shelfRef.current.scrollLeft);
+      }
     }
   }, [builder.consonants.length]);
 
