@@ -97,11 +97,13 @@ export default function TeluguKeyboard({
   // consonant of a new akshara is tapped (consonants.length 0 → 1).
   useEffect(() => {
     if (builder.consonants.length === 1 && shelfRef.current) {
-      if (shelfRef.current.scrollLeft !== MATRA_SCROLL_LEFT) {
-        console.log("BEFORE:", shelfRef.current.scrollLeft);
-        shelfRef.current.scrollLeft = MATRA_SCROLL_LEFT;
-        console.log("AFTER:", shelfRef.current.scrollLeft);
-      }
+      // setTimeout(0) lets the browser finish any in-flight touch-momentum scroll
+      // before we apply the programmatic snap — otherwise iOS Safari silently
+      // overrides the scrollLeft write with its inertial scroll engine.
+      const el = shelfRef.current;
+      setTimeout(() => {
+        el.scrollLeft = MATRA_SCROLL_LEFT;
+      }, 0);
     }
   }, [builder.consonants.length]);
 
