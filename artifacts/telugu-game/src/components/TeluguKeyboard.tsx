@@ -96,17 +96,8 @@ export default function TeluguKeyboard({
   // Scroll the shelf to show dependent vowel signs the moment the first
   // consonant of a new akshara is tapped (consonants.length 0 → 1).
   useEffect(() => {
-    if (builder.consonants.length === 1 && shelfRef.current) {
-      // setTimeout(0) lets the browser finish any in-flight touch-momentum scroll
-      // before we apply the programmatic snap — otherwise iOS Safari silently
-      // overrides the scrollLeft write with its inertial scroll engine.
-      const el = shelfRef.current;
-      // Kill iOS inertial scroll by hiding overflow, snap, then restore.
-      el.style.overflowX = "hidden";
-      el.scrollLeft = MATRA_SCROLL_LEFT;
-      setTimeout(() => {
-        if (shelfRef.current) shelfRef.current.style.overflowX = "auto";
-      }, 100);
+    if (builder.consonants.length === 1) {
+      shelfRef.current?.scrollTo({ left: MATRA_SCROLL_LEFT, behavior: "smooth" });
     }
   }, [builder.consonants.length]);
 
@@ -159,7 +150,7 @@ export default function TeluguKeyboard({
             style={{
               display: "flex", gap: 6, overflowX: "auto",
               padding: "2px 16px 4px",
-              scrollbarWidth: "none",
+              scrollbarWidth: "none", scrollBehavior: "smooth",
             }}
           >
             {MODIFIER_SHELF.map((char, idx) => {
