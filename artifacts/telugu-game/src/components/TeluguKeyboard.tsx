@@ -101,9 +101,12 @@ export default function TeluguKeyboard({
       // before we apply the programmatic snap — otherwise iOS Safari silently
       // overrides the scrollLeft write with its inertial scroll engine.
       const el = shelfRef.current;
+      // Kill iOS inertial scroll by hiding overflow, snap, then restore.
+      el.style.overflowX = "hidden";
+      el.scrollLeft = MATRA_SCROLL_LEFT;
       setTimeout(() => {
-        el.scrollLeft = MATRA_SCROLL_LEFT;
-      }, 0);
+        if (shelfRef.current) shelfRef.current.style.overflowX = "auto";
+      }, 100);
     }
   }, [builder.consonants.length]);
 
