@@ -1,0 +1,63 @@
+Update Game_v2.tsx only. Do not touch any other file.
+Replace the placeholder content with a two-mode layout. No real game logic yet — use hardcoded dummy data to populate the UI.
+Two modes, controlled by a single state variable reviewMode: boolean (default false).
+
+INPUT MODE (reviewMode === false):
+Full screen layout, top to bottom:
+
+Top bar — fixed, ~44px tall, dark background (rgba(0,0,0,0.3)), three items in a row:
+
+Left: "☰" icon button (no-op for now), white, ~20px
+Centre: "3 / 6" in small text (~12px), muted colour #94a3b8
+Right: "📊" icon button (no-op for now), white, ~20px
+
+
+Keyboard area — takes all remaining screen height below the top bar. Import and render TeluguKeyboard with dummy/empty props for now:
+
+builder: { consonants: [], vowelSign: null, pendingHalant: false }
+rowHeatmap: array of 7 nulls
+activeBox: 0
+All handlers (onConsonant, onModifier, onCluster, onBackspace): no-op functions () => {}
+onSubmit: sets reviewMode to true
+
+
+
+
+REVIEW MODE (reviewMode === true):
+Full screen layout, top to bottom:
+
+Same top bar as INPUT MODE
+Board area — takes all space between top bar and continue button. Shows hardcoded dummy guess history:
+Row 1 (dummy): మం=yellow, చి=grey, త=green, నం=grey
+Row 2 (dummy): మం=green, చి=yellow, త=green, నం=yellow
+Each row: 4 tiles in a horizontal grid, full width with padding 12px each side, gap 8px between tiles.
+Tile style:
+
+Height: 56px
+Border radius: 10px
+Font size: 1.4rem, bold, white
+Green: background #166534
+Yellow: background #854d0e
+Grey: background #374151
+Each tile centres its text
+
+
+Continue button — fixed to bottom, full width minus 16px padding each side, height 52px, border radius 14px, orange background (linear-gradient(135deg,#d97706,#f59e0b)), dark text:
+
+Text: "కొనసాగించు · Continue"
+Font size: 13px, bold
+Tapping it sets reviewMode back to false
+
+
+
+
+Overall screen background: linear-gradient(160deg,#1a0a2e 0%,#16213e 55%,#0f3460 100%) — same as Game.tsx.
+Verify before marking done:
+
+Default URL still loads original game unchanged
+?v=2 shows INPUT MODE with full working keyboard and top bar
+Tapping ENTER switches to REVIEW MODE showing dummy tiles and continue button
+Tapping Continue switches back to INPUT MODE
+Test on mobile — confirm keyboard fills the screen in INPUT MODE, board fills the screen in REVIEW MODE
+
+Report what it looks and feels like on device.
