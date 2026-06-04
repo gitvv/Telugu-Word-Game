@@ -121,6 +121,38 @@ export default function Game_v2() {
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: BG }}>
       <TopBar />
+
+      {/* Active tile row */}
+      <div style={{
+        flexShrink: 0,
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+        gap: 8,
+        padding: "8px 12px",
+      }}>
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{
+            height: 64,
+            borderRadius: 10,
+            background: i === 0 ? "linear-gradient(135deg,#312e81,#4338ca)" : "rgba(255,255,255,0.05)",
+            border: `2px solid ${i === 0 ? "#818cf8" : "rgba(255,255,255,0.12)"}`,
+          }} />
+        ))}
+      </div>
+
+      {/* Fallback test button — remove once ENTER confirmed working */}
+      <button onClick={handleSubmit} style={{
+        margin: "4px 12px",
+        padding: "8px",
+        background: "#6366f1",
+        color: "white",
+        border: "none",
+        borderRadius: 8,
+        fontSize: 12,
+      }}>
+        TEST: Switch to Review Mode
+      </button>
+
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         <TeluguKeyboard
           builder={DUMMY_BUILDER}
