@@ -2,6 +2,7 @@ import Game from "@/pages/Game";
 import Game_v2 from "@/pages/Game_v2";
 import Game_v3 from "@/pages/Game_v3";
 import Game_v4 from "@/pages/Game_v4";
+import Game_v5 from "@/pages/Game_v5";
 
 const params = new URLSearchParams(window.location.search);
 
@@ -15,5 +16,8 @@ export default function App() {
   if (params.get("v") === "4") {
     return <Game_v4 />;
   }
-  return <Game />;
+  if (params.get("v") === "5") {
+    return <Game_v5 />;
+  }
+  return <Game_v5 />;
 }
